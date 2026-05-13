@@ -1,0 +1,664 @@
+[
+  {
+    "pattern_id": "c526060bdbce8450",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Cisco\\-IOS\\s+%LINK\\-3\\-UPDOWN:\\s+Interface\\s+(?P<interface_id>\\S+),\\s+changed\\s+state\\s+to\\s+down",
+    "type": "interface",
+    "subtype": "link",
+    "severity": "info",
+    "vendor": "cisco",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:11Z CORE-RTR-01 Cisco-IOS %LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "d3c171d0cb3af34b",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Cisco\\-IOS\\s+%OSPF\\-5\\-ADJCHG:\\s+Process\\s+1,\\s+Nbr\\s+(?P<ip>\\d{1,3}(?:\\.\\d{1,3}){3})\\s+on\\s+(?P<interface_id>\\S+)\\s+from\\s+FULL\\s+to\\s+DOWN,\\s+Neighbor\\s+Down:\\s+Interface\\s+down\\s+or\\s+detached",
+    "type": "routing",
+    "subtype": "ospf",
+    "severity": "info",
+    "vendor": "cisco",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "ip",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:20Z CORE-RTR-01 Cisco-IOS %OSPF-5-ADJCHG: Process 1, Nbr 10.10.10.2 on GigabitEthernet0/1 from FULL to DOWN, Neighbor Down: Interface down or detached",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "87c536a59b71b244",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Cisco\\-IOS\\s+%BGP\\-5\\-ADJCHANGE:\\s+neighbor\\s+(?P<ip>\\d{1,3}(?:\\.\\d{1,3}){3})\\s+Down\\s+Interface\\s+flap",
+    "type": "routing",
+    "subtype": "bgp",
+    "severity": "info",
+    "vendor": "cisco",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "ip"
+    ],
+    "example_log": "2026-04-03T09:59:00Z CORE-RTR-01 Cisco-IOS %BGP-5-ADJCHANGE: neighbor 192.168.254.2 Down Interface flap",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "47125e6889be833a",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+ArubaOS\\-Switch\\s+Port\\s+1/1/48\\s+is\\s+now\\s+on\\-line",
+    "type": "system",
+    "subtype": "unknown",
+    "severity": "Information",
+    "vendor": "aruba",
+    "event_id": "76",
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:59:24Z DIST-SW-01 ArubaOS-Switch Port 1/1/48 is now on-line",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "7f02b849470eeea2",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Arista\\-EOS\\s+TRANSCEIVER\\-3\\-ALARM:\\s+(?P<interface_id>\\S+)\\s+optical\\s+power\\s+below\\s+threshold",
+    "type": "hardware",
+    "subtype": "transceiver",
+    "severity": "error",
+    "vendor": "arista",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T10:05:00Z ARISTA-SW-01 Arista-EOS TRANSCEIVER-3-ALARM: Ethernet1 optical power below threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "76ae97eb4339bfe1",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+ERROR\\s+Firewall\\s+Packet\\s+Drops",
+    "type": "security",
+    "subtype": "firewall",
+    "severity": "error",
+    "vendor": null,
+    "event_id": null,
+    "fields": [
+      "event_time"
+    ],
+    "example_log": "2026-04-03T10:05:00Z ERROR Firewall Packet Drops",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "7f02b849470eeea2",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Arista\\-EOS\\s+TRANSCEIVER\\-3\\-ALARM:\\s+Ethernet1\\s+optical\\s+power\\s+below\\s+threshold",
+    "type": "hardware",
+    "subtype": "transceiver",
+    "severity": "error",
+    "vendor": "arista",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T10:05:00Z ARISTA-SW-01 Arista-EOS TRANSCEIVER-3-ALARM: Ethernet1 optical power below threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "9745e9ecbcf131e9",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Cisco\\-IOS\\s+%ETHPORT\\-4\\-IF_RX_ERR:\\s+Interface\\s+(?P<interface_id>\\S+)\\s+exceeded\\s+CRC\\s+error\\s+threshold",
+    "type": "interface",
+    "subtype": "ethport",
+    "severity": "info",
+    "vendor": "Cisco-IOS",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:57:58Z CORE-RTR-W1 Cisco-IOS %ETHPORT-4-IF_RX_ERR: Interface GigabitEthernet0/1 exceeded CRC error threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "83d0be0694851dae",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Cisco\\-IOS\\s+%LINK\\-3\\-UPDOWN:\\s+Interface\\s+(?P<interface_id>\\S+)\\s+changed\\s+state\\s+to\\s+down",
+    "type": "interface",
+    "subtype": "link",
+    "severity": "info",
+    "vendor": "cisco",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:01Z CORE-RTR-W1 Cisco-IOS %LINK-3-UPDOWN: Interface GigabitEthernet0/1 changed state to down",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "9420e35860f21a65",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Linux\\s+kernel:\\s+CPU\\s+utilization\\s+exceeded\\s+85%\\s+for\\s+120\\s+seconds",
+    "type": "monitor",
+    "subtype": "node",
+    "severity": "info",
+    "vendor": "linux kernel",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:05Z MONITOR-NODE-01 Linux kernel: CPU utilization exceeded 85% for 120 seconds",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "0bef4bdc9223c830",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+PaloAlto\\s+%SYSTEM\\-5\\-VPN_FLAP:\\s+IPSec\\s+tunnel\\s+(?P<interface_id>\\S+)\\s+flap\\s+detected",
+    "type": "interface",
+    "subtype": "link",
+    "severity": "info",
+    "vendor": "PaloAlto",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:07Z FW1 PaloAlto %SYSTEM-5-VPN_FLAP: IPSec tunnel VPN-DC-EAST flap detected",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "f3ad113106aa1746",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Cisco\\-IOS\\s+%ROUTING\\-5\\-RECONVERGE:\\s+Routing\\s+reconvergence\\s+process\\s+initiated",
+    "type": "routing",
+    "subtype": "reconvergence",
+    "severity": "info",
+    "vendor": "cisco",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:07Z CORE-RTR-W1 Cisco-IOS %ROUTING-5-RECONVERGE: Routing reconvergence process initiated",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "c4a566801203ee47",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+AristaEOS\\s+%ETH\\-4\\-MICROBURST:\\s+Microburst\\s+detected\\s+on\\s+Port\\-Channel10",
+    "type": "interface",
+    "subtype": "link",
+    "severity": "info",
+    "vendor": "AristaEOS",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:08Z DIST-SW-W1 AristaEOS %ETH-4-MICROBURST: Microburst detected on Port-Channel10",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "b803d1579688cc01",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Cisco\\-IOS\\s+%OSPF\\-5\\-ADJCHG:\\s+Process\\s+1\\s+neighbor\\s+(?P<ip>\\d{1,3}(?:\\.\\d{1,3}){3})\\s+state\\s+changed\\s+from\\s+FULL\\s+to\\s+EXSTART",
+    "type": "routing",
+    "subtype": "ospf",
+    "severity": "info",
+    "vendor": "cisco",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "ip"
+    ],
+    "example_log": "2026-04-03T09:58:08Z CORE-RTR-W1 Cisco-IOS %OSPF-5-ADJCHG: Process 1 neighbor 10.20.20.1 state changed from FULL to EXSTART",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "e76b30df28ef0554",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+OpenLDAP\\s+slapd\\[992\\]:\\s+LDAP\\s+bind\\s+timeout\\s+for\\s+client\\s+10\\.88\\.21\\.44",
+    "type": "auth",
+    "subtype": "svc",
+    "severity": "error",
+    "vendor": "openldap",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:09Z AUTH-SVC-W1 OpenLDAP slapd[992]: LDAP bind timeout for client 10.88.21.44",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "8cf7fdded199ae88",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Juniper\\-Junos\\s+(?P<interface_id>\\S+):\\s+Inter\\-DC\\s+WAN\\s+latency\\s+spike\\s+detected\\s+above\\s+SLA\\s+baseline",
+    "type": "network",
+    "subtype": "wan",
+    "severity": "info",
+    "vendor": "juniper",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:09Z MPLS-WAN-01 Juniper-Junos rpd[1882]: Inter-DC WAN latency spike detected above SLA baseline",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "878013fd6ed94f8d",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+AristaEOS\\s+%PKTLOSS\\-3\\-THRESHOLD:\\s+Packet\\s+loss\\s+exceeded\\s+threshold\\s+on\\s+uplink\\s+(?P<interface_id>\\S+)",
+    "type": "interface",
+    "subtype": "channel",
+    "severity": "warning",
+    "vendor": "arista",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:10Z DIST-SW-W1 AristaEOS %PKTLOSS-3-THRESHOLD: Packet loss exceeded threshold on uplink Port-Channel10",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "440abf201427e250",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+RedisServer:\\s+cache\\s+miss\\s+ratio\\s+exceeded\\s+configured\\s+threshold",
+    "type": "cache",
+    "subtype": "redis",
+    "severity": "warning",
+    "vendor": "redis",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:11Z REDIS-CACHE-C1 RedisServer: cache miss ratio exceeded configured threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "0de5526337f2a361",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+PaloAlto\\s+%AUTH\\-6\\-FAILED_LOGIN:\\s+Multiple\\s+failed\\s+SSH\\s+login\\s+attempts\\s+detected\\s+from\\s+172\\.16\\.44\\.91",
+    "type": "authentication",
+    "subtype": "ssh",
+    "severity": "info",
+    "vendor": "paloalto",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:12Z FW1 PaloAlto %AUTH-6-FAILED_LOGIN: Multiple failed SSH login attempts detected from 172.16.44.91",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "d35954998c41fd58",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+kube\\-apiserver:\\s+service\\s+discovery\\s+failed\\s+for\\s+namespace\\s+production\\-apps",
+    "type": "interface",
+    "subtype": "service",
+    "severity": "error",
+    "vendor": "kubernetes",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:13Z K8S-MASTER-E1 kube-apiserver: service discovery failed for namespace production-apps",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "b2fb8ba01a0d8f65",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+AWS\\-TransitGW:\\s+transit\\s+gateway\\s+latency\\s+increased\\s+above\\s+normal\\s+baseline",
+    "type": "network",
+    "subtype": "transit_gateway",
+    "severity": "info",
+    "vendor": "aws",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:14Z AWS-TGW-01 AWS-TransitGW: transit gateway latency increased above normal baseline",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "6153c18b5fde318d",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+PostgreSQL:\\s+statement\\s+timeout\\s+exceeded\\s+for\\s+transaction\\s+882771",
+    "type": "database",
+    "subtype": "cluster",
+    "severity": "warning",
+    "vendor": "PostgreSQL",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:15Z DB-CLUSTER-W1 PostgreSQL: statement timeout exceeded for transaction 882771",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "4f68a0d18b5a272a",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Fluentd:\\s+telemetry\\s+ingestion\\s+delayed\\s+due\\s+to\\s+upstream\\s+buffering",
+    "type": "logging",
+    "subtype": "telemetry-ingestion-delayed",
+    "severity": "info",
+    "vendor": "fluentd",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:16Z OBSERVE-STACK-01 Fluentd: telemetry ingestion delayed due to upstream buffering",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "7b87c1a9fcf405d8",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+NetApp\\-ONTAP\\s+mgwd:\\s+disk\\s+latency\\s+exceeded\\s+baseline\\s+for\\s+aggregate\\s+aggr01",
+    "type": "storage",
+    "subtype": "w1",
+    "severity": "error",
+    "vendor": "netapp",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:17Z STORAGE-W1 NetApp-ONTAP mgwd: disk latency exceeded baseline for aggregate aggr01",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "0fbe89ff5a98d5ee",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Nginx:\\s+upstream\\s+host\\s+resolution\\s+failure\\s+for\\s+auth\\.service\\.internal",
+    "type": "network",
+    "subtype": "api-gateway",
+    "severity": "error",
+    "vendor": "nginx",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:18Z API-GW-E1 Nginx: upstream host resolution failure for auth.service.internal",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "151b6d366f8bac46",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+PostgreSQL:\\s+replication\\s+lag\\s+exceeded\\s+warning\\s+threshold",
+    "type": "database",
+    "subtype": "cluster",
+    "severity": "warning",
+    "vendor": "PostgreSQL",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:18Z DB-CLUSTER-W1 PostgreSQL: replication lag exceeded warning threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "6c6c71aa5596d4f4",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Linux\\s+kernel:\\s+memory\\s+pressure\\s+detected,\\s+reclaim\\s+activity\\s+elevated",
+    "type": "system",
+    "subtype": "kernel",
+    "severity": "info",
+    "vendor": "Linux kernel",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:18Z K8S-WORKER-E3 Linux kernel: memory pressure detected, reclaim activity elevated",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "fecc4fb0cb8429e3",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+EnvoyProxy:\\s+API\\s+response\\s+latency\\s+exceeded\\s+SLA\\s+threshold",
+    "type": "networking",
+    "subtype": "api_gateway",
+    "severity": "error",
+    "vendor": "envoyproxy",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:19Z API-GW-E1 EnvoyProxy: API response latency exceeded SLA threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "21ad7877e8cc2924",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+kubelet:\\s+multiple\\s+pod\\s+restart\\s+events\\s+detected\\s+in\\s+namespace\\s+production\\-apps",
+    "type": "container",
+    "subtype": "pod",
+    "severity": "info",
+    "vendor": "kubernetes",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:20Z K8S-WORKER-E3 kubelet: multiple pod restart events detected in namespace production-apps",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "6c810078b001f97d",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+kubelet:\\s+node\\s+transitioned\\s+to\\s+NotReady\\s+state",
+    "type": "node",
+    "subtype": "transition",
+    "severity": "info",
+    "vendor": "kubernetes",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:21Z EKS-NODE-C2 kubelet: node transitioned to NotReady state",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "c21f0d9737231e29",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+APP\\-SVC\\-(?P<interface_id>\\S+)\\s+JavaApp:\\s+thread\\s+pool\\s+exhaustion\\s+detected\\s+for\\s+request\\s+executor",
+    "type": "application",
+    "subtype": "service",
+    "severity": null,
+    "vendor": "JavaApp",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:22Z APP-SVC-E1 JavaApp: thread pool exhaustion detected for request executor",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "d9713b754ea76682",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+EnvoyProxy:\\s+HTTP\\s+502\\s+error\\s+rate\\s+exceeded\\s+configured\\s+threshold",
+    "type": "network",
+    "subtype": "api-gateway",
+    "severity": "error",
+    "vendor": "envoyproxy",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:23Z API-GW-E1 EnvoyProxy: HTTP 502 error rate exceeded configured threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "855eefa739f421d6",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+APP\\-SVC\\-E1\\s+JavaApp:\\s+application\\s+request\\s+timeout\\s+exceeded\\s+maximum\\s+threshold",
+    "type": "service",
+    "subtype": "application",
+    "severity": "error",
+    "vendor": null,
+    "event_id": null,
+    "fields": [
+      "event_time"
+    ],
+    "example_log": "2026-04-03T09:58:24Z APP-SVC-E1 JavaApp: application request timeout exceeded maximum threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "61c61b04109b045b",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Cisco\\-IOS\\s+%BGP\\-5\\-ADJCHANGE:\\s+neighbor\\s+(?P<ip>\\d{1,3}(?:\\.\\d{1,3}){3})\\s+Up",
+    "type": "routing",
+    "subtype": "bgp",
+    "severity": "info",
+    "vendor": "cisco",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "ip"
+    ],
+    "example_log": "2026-04-03T09:58:25Z CORE-RTR-W1 Cisco-IOS %BGP-5-ADJCHANGE: neighbor 10.10.1.2 Up",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "5ae22280bceed6ee",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+APP\\-SVC\\-E1\\s+Hystrix:\\s+circuit\\s+breaker\\s+opened\\s+for\\s+downstream\\s+auth\\-service",
+    "type": "application",
+    "subtype": "service",
+    "severity": "info",
+    "vendor": null,
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:26Z APP-SVC-E1 Hystrix: circuit breaker opened for downstream auth-service",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "d843ba0cfa2f88f7",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+AristaEOS\\s+%LINK\\-5\\-UPDOWN:\\s+(?P<interface_id>\\S+)\\s+operational\\s+state\\s+restored",
+    "type": "interface",
+    "subtype": "link-channel",
+    "severity": "info",
+    "vendor": "AristaEOS",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id"
+    ],
+    "example_log": "2026-04-03T09:58:27Z DIST-SW-W1 AristaEOS %LINK-5-UPDOWN: Port-Channel10 operational state restored",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "e37a0cd75db6825b",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Bind9\\s+named\\[2145\\]:\\s+recursive\\s+query\\s+latency\\s+returned\\s+to\\s+normal\\s+baseline",
+    "type": "dns",
+    "subtype": "named",
+    "severity": "info",
+    "vendor": "bind9",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:29Z DNS-EAST-01 Bind9 named[2145]: recursive query latency returned to normal baseline",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "d4420a9dff0a03f4",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+AUTH\\-SVC\\-W1\\s+OpenLDAP\\s+slapd\\[992\\]:\\s+LDAP\\s+bind\\s+latency\\s+normalized",
+    "type": "interface",
+    "subtype": "service",
+    "severity": "info",
+    "vendor": "openldap",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:31Z AUTH-SVC-W1 OpenLDAP slapd[992]: LDAP bind latency normalized",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "31d41c82a6778bcd",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+EnvoyProxy:\\s+upstream\\s+resolution\\s+latency\\s+recovered",
+    "type": "networking",
+    "subtype": "api-gateway",
+    "severity": "info",
+    "vendor": "EnvoyProxy",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "interface_id",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:34Z API-GW-E1 EnvoyProxy: upstream resolution latency recovered",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "8b618f2a3f3f2869",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+APP\\-SVC\\-E1\\s+JavaApp:\\s+request\\s+timeout\\s+rate\\s+returned\\s+below\\s+alert\\s+threshold",
+    "type": "application",
+    "subtype": "service",
+    "severity": "info",
+    "vendor": "JavaApp",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "ip"
+    ],
+    "example_log": "2026-04-03T09:58:36Z APP-SVC-E1 JavaApp: request timeout rate returned below alert threshold",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "5119b747a096d199",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Fluentd:\\s+telemetry\\s+ingestion\\s+pipeline\\s+stabilized",
+    "type": "logging",
+    "subtype": "telemetry-ingestion",
+    "severity": "info",
+    "vendor": "fluentd",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:38Z OBSERVE-STACK-01 Fluentd: telemetry ingestion pipeline stabilized",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "7487431fa99dcca3",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+kube\\-apiserver:\\s+service\\s+discovery\\s+restored\\s+for\\s+namespace\\s+production\\-apps",
+    "type": "kubernetes",
+    "subtype": "master",
+    "severity": "info",
+    "vendor": "kubernetes",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:40Z K8S-MASTER-E1 kube-apiserver: service discovery restored for namespace production-apps",
+    "generation_source": "deterministic"
+  }
+]

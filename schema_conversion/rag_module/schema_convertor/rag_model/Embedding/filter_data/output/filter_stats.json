@@ -1,0 +1,13 @@
+{
+  "input_count": 3894,
+  "kept_count": 3805,
+  "excluded_count": 89,
+  "excluded_by_reason": {
+    "hard_exclude_quality_flag": 84,
+    "low_value_message": 5
+  },
+  "vendor_counts": {
+    "aruba": 2250,
+    "cisco": 1555
+  }
+}

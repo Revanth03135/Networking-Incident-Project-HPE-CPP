@@ -1,0 +1,6 @@
+Steps for processing the log PDF'Steps
+aruba_parser --> convert aruba pdf in template to the json (result:aruba_event_records.json)
+similarly for the cisco_parser (result:cisco_event_records.json)
+
+creat_unified_schema.py --> normalize the both results (result : unified_event_kb.json)
+
