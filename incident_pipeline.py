@@ -1,4 +1,6 @@
 import sys
+import subprocess
+import platform
 from pathlib import Path
 
 
@@ -23,6 +25,56 @@ from timeline_reconstruction import (
 )
 
 
+TIMELINE_OUTPUT = (
+    project_root / "timeline_output.json"
+)
+
+
+# =========================================================
+# AUTO SETUP FUNCTION
+# =========================================================
+
+def run_auto_setup():
+    """Run setup_auto.ps1 to check and install dependencies"""
+    
+    if platform.system() != "Windows":
+        print("⚠ Auto-setup requires Windows/PowerShell")
+        print("  Run: bash setup_dependencies.sh")
+        return False
+    
+    setup_script = project_root / "setup_auto.ps1"
+    
+    if not setup_script.exists():
+        print(f"⚠ Setup script not found: {setup_script}")
+        return False
+    
+    print("\n" + "=" * 70)
+    print(" AUTO SETUP — Checking Dependencies ")
+    print("=" * 70)
+    
+    try:
+        # Run PowerShell script
+        cmd = [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy", "RemoteSigned",
+            "-File", str(setup_script)
+        ]
+        
+        result = subprocess.run(cmd, check=False)
+        
+        if result.returncode == 0:
+            print("\n✓ Setup completed successfully")
+            return True
+        else:
+            print("\n✗ Setup encountered issues (exit code: {})".format(result.returncode))
+            return False
+            
+    except Exception as e:
+        print(f"\n✗ Error running setup: {e}")
+        return False
+
+
 # =========================================================
 # CONFIG
 # =========================================================
@@ -38,8 +90,21 @@ TIMELINE_OUTPUT = (
 
 def main():
 
+    print("\n" + "=" * 70)
+    print(" CHECKING DEPENDENCIES ")
+    print("=" * 70)
+    
+    # Run auto setup
+    if not run_auto_setup():
+        print("\n⚠ Dependency check failed. Proceeding anyway...")
+        print("  If errors occur, run setup manually:")
+        if platform.system() == "Windows":
+            print("  PowerShell: .\\setup_auto.ps1")
+        else:
+            print("  Bash: ./setup_dependencies.sh")
+    
     input_file = input(
-        "Enter raw log file path: "
+        "\nEnter raw log file path: "
     ).strip()
 
     input_path = Path(input_file)
