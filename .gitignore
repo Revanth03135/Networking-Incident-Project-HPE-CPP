@@ -3,10 +3,14 @@ raw_logs.txt
 output.json
 parsed_logs.jsonl
 timeline_output.json
+preprocessed_events.json
+causal_inference_output.json
+enterprise_network_report_*.md
 
 # Exclude large index files
 *.faiss
 event_index.faiss
+*.npy
 
 # Python cache
 __pycache__/
