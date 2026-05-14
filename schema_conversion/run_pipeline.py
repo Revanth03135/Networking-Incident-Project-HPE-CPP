@@ -1,3 +1,4 @@
+#run_pipeline.py
 import json
 import re
 import sys
@@ -15,6 +16,9 @@ sys.path.insert(0, str(project_root))
 # =========================================================
 # IMPORTS
 # =========================================================
+from schema_conversion.schema_formatter import (
+    normalize_output
+)
 
 from schema_conversion.rag_module.schema_convertor.rag_model.Core_RAG.retriever import (
     RAGRetriever
@@ -33,9 +37,9 @@ from schema_conversion.regex_generation import (
 # CONFIG
 # =========================================================
 
-OUTPUT_FILE = r"C:\Users\kavin\Documents\Networking-Incident-Project-HPE-CPP-main\output.json"
+OUTPUT_FILE = project_root / "output.json"
 
-REGEX_FILE = r"C:\Users\kavin\Documents\Networking-Incident-Project-HPE-CPP-main\schema_conversion\regex_patterns.json"
+REGEX_FILE = project_root / "schema_conversion" / "regex_patterns.json"
 
 MIN_CONFIDENCE_SCORE = 0.60
 
@@ -239,12 +243,7 @@ def normalize_rag_output(rag_result):
 # MAIN
 # =========================================================
 
-def main():
-
-    input_file = input(
-        "Enter log file path: "
-    ).strip()
-
+def process_logs(input_file):
     input_path = Path(input_file)
 
     if not input_path.exists():
@@ -309,10 +308,14 @@ def main():
 
                 if regex_schema is not None:
 
-                    existing_records.append(
-                        regex_schema
+                    formatted = normalize_output(
+                        regex_schema,
+                        raw_log
                     )
 
+                    existing_records.append(
+                        formatted
+                    )
                     regex_success += 1
 
                     print("REGEX SUCCESS")
@@ -334,8 +337,14 @@ def main():
 
                 if normalized is not None:
 
+                   
+                    formatted = normalize_output(
+                        normalized,
+                        raw_log
+                    )
+
                     existing_records.append(
-                        normalized
+                        formatted
                     )
 
                     try:
@@ -384,8 +393,13 @@ def main():
                     raw_log
                 )
 
+                formatted = normalize_output(
+                    llm_schema,
+                    raw_log
+                )
+
                 existing_records.append(
-                    llm_schema
+                    formatted
                 )
 
                 try:
@@ -431,6 +445,16 @@ def main():
 
     print(f"Saved To      : {OUTPUT_FILE}")
 
+    return OUTPUT_FILE
+
+def main():
+
+    input_file = input(
+        "Enter log file path: "
+    ).strip()
+    process_logs(input_file)
+    
+    
 
 if __name__ == "__main__":
     main()

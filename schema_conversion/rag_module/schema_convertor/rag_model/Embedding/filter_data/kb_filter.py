@@ -286,12 +286,14 @@ def save_json_file(path: str, data: Any) -> None:
 # ----------------------------
 
 def main(
-    input_path: str = r"D:\NetworkIncident-HPE\schema_convertor\rag_module\unified_event_kb.json",
+    input_path: str = None,
     filtered_output_path: str = "filtered_event_kb.json",
     excluded_output_path: str = "excluded_event_kb.json",
     stats_output_path: str = "filter_stats.json",
     
 ) -> None:
+    if input_path is None:
+        input_path = str(Path(__file__).parent.parent.parent / "PreRequirementSteps" / "template_normalizer" / "unified_event_kb.json")
     records = load_json_file(input_path)
     result = filter_records(records)
 

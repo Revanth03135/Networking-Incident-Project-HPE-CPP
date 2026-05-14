@@ -1,11 +1,18 @@
 from pprint import pprint
+from pathlib import Path
 from .retriever import RAGRetriever
+
+# Get paths relative to project root
+from schema_conversion.rag_module.schema_convertor.rag_model.config import (
+    EVENT_INDEX_PATH,
+    EMBEDDING_METADATA_PATH
+)
 
 
 def main():
     retriever = RAGRetriever(
-        index_path=r"D:\NetworkIncident-HPE\schema_convertor\rag_module\Embedding\build_index\event_index.faiss",
-        metadata_path=r"D:\NetworkIncident-HPE\schema_convertor\rag_module\Embedding\embedding_metadata.json",
+        index_path=str(EVENT_INDEX_PATH),
+        metadata_path=str(EMBEDDING_METADATA_PATH),
     )
 
     test_logs = [

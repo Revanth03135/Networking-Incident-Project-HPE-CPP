@@ -336,9 +336,15 @@ class ArubaEventGuideParser:
 
 
 if __name__ == "__main__":
-    PDF_PATH = r"D:\NetworkIncident-HPE\schema_convertor\template\Aruba Event Log Message Reference Guide for AOS-S Switch 16.09_copy.pdf"
+    TEMPLATE_DIR = Path(__file__).parent.parent.parent / "template"
+    PDF_FILES = list(TEMPLATE_DIR.glob("*.pdf"))
+    
+    if not PDF_FILES:
+        raise FileNotFoundError(f"No PDF files found in {TEMPLATE_DIR}")
+    
+    PDF_PATH = PDF_FILES[0]  # Use first PDF found
 
-    parser = ArubaEventGuideParser(PDF_PATH)
+    parser = ArubaEventGuideParser(str(PDF_PATH))
     records = parser.parse_to_dicts()
 
     with open("aruba_event_records.json", "w", encoding="utf-8") as f:

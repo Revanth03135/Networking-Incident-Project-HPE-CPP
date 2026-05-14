@@ -2,6 +2,7 @@
 raw_logs.txt
 output.json
 parsed_logs.jsonl
+timeline_output.json
 
 # Exclude large index files
 *.faiss

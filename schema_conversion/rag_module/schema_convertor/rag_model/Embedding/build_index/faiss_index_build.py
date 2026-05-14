@@ -1,9 +1,17 @@
 import json
 from pathlib import Path
 from typing import Any, List, Dict
+import sys
 
 import numpy as np
 import faiss
+
+# Get paths relative to project root
+config_path = Path(__file__).parent.parent.parent / "config.py"
+if config_path.exists():
+    from config import EMBEDDING_DIR
+else:
+    EMBEDDING_DIR = Path(__file__).parent.parent.parent / "Embedding"
 
 
 
@@ -129,11 +137,19 @@ class FAISSIndexBuilder:
 
 
 def main(
-    embeddings_path: str = r"D:\NetworkIncident-HPE\schema_convertor\rag_module\Embedding\build_index\event_embeddings_fixed.npy",
-    metadata_path: str = r"D:\NetworkIncident-HPE\schema_convertor\rag_module\Embedding\embedding_metadata.json",
+    embeddings_path: str = None,
+    metadata_path: str = None,
     index_path: str = "event_index.faiss",
 ) -> None:
-    load_and_fix_embeddings(r"D:\NetworkIncident-HPE\schema_convertor\rag_module\Embedding\event_embeddings.npy",r"D:\NetworkIncident-HPE\schema_convertor\rag_module\Embedding\event_embeddings_fixed.npy")
+    if embeddings_path is None:
+        embeddings_path = str(EMBEDDING_DIR / "build_index" / "event_embeddings_fixed.npy")
+    if metadata_path is None:
+        metadata_path = str(EMBEDDING_DIR / "embedding_metadata.json")
+    
+    load_and_fix_embeddings(
+        str(EMBEDDING_DIR / "event_embeddings.npy"),
+        str(EMBEDDING_DIR / "build_index" / "event_embeddings_fixed.npy")
+    )
     print("Loading embeddings...")
     embeddings = load_embeddings(embeddings_path)
 

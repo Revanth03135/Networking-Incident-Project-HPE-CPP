@@ -3,6 +3,7 @@ import statistics
 from datetime import datetime, timedelta
 from collections import defaultdict
 from typing import Optional
+from pathlib import Path
 import argparse
 import sys
 import os
@@ -101,7 +102,7 @@ def flatten_events(raw):
 
             "device": dev.get("hostname", "unknown"),
 
-            "device_ip": dev.get("ip_address"),
+            "device_ip": dev.get("ip"),
 
             "interface": net.get("interface_id"),
 
@@ -437,8 +438,12 @@ def build_incidents(clusters):
         root = find_root_cause(deduped, chains)
 
         devices = list({
-            e["device"]
+
+            str(e["device"])
+
             for e in deduped
+
+            if e.get("device")
         })
 
         start = min(
@@ -579,7 +584,9 @@ def json_serializable(obj):
 # MAIN PIPELINE
 # =========================================================
 
-def run_pipeline(input_path, output_path="timeline_output.json"):
+def run_pipeline(input_path, output_path=None):
+    if output_path is None:
+        output_path = Path(__file__).parent / "timeline_output.json"
 
     print("\n" + "═" * 60)
     print(" HPE INCIDENT TIMELINE RECONSTRUCTION ENGINE ")
@@ -640,7 +647,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-o",
         "--output",
-        default="timeline_output.json"
+        default=str(Path(__file__).parent / "timeline_output.json")
     )
 
     args = parser.parse_args()

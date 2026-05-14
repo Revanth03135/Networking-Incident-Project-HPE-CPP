@@ -1,16 +1,22 @@
+#regex_generation.py
 import json
 import re
 import hashlib
+import sys
 from pathlib import Path
 
 import ollama
+
+# Add project root to path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 
 # =========================================================
 # CONFIG
 # =========================================================
 
-REGEX_STORE_FILE = "regex_patterns.json"
+REGEX_STORE_FILE = project_root / "schema_conversion" / "regex_patterns.json"
 
 LLM_MODEL = "qwen:7b"
 

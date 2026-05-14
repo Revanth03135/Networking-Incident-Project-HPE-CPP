@@ -660,5 +660,36 @@
     ],
     "example_log": "2026-04-03T09:58:40Z K8S-MASTER-E1 kube-apiserver: service discovery restored for namespace production-apps",
     "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "e6aa68f40d56e62a",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Bind9\\s+named\\[2145\\]:\\s+warning:\\s+client\\s+latency\\s+exceeded\\s+threshold\\s+during\\s+recursive\\s+resolution",
+    "type": "dns",
+    "subtype": "recursive",
+    "severity": "warning",
+    "vendor": "bind9 named",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname"
+    ],
+    "example_log": "2026-04-03T09:58:03Z DNS-EAST-01 Bind9 named[2145]: warning: client latency exceeded threshold during recursive resolution",
+    "generation_source": "deterministic"
+  },
+  {
+    "pattern_id": "07ad90d64fe27e0f",
+    "regex_pattern": "(?P<event_time>\\S+)\\s+(?P<hostname>\\S+)\\s+Bind9\\s+named\\[2188\\]:\\s+SERVFAIL\\s+response\\s+rate\\s+exceeded\\s+configured\\s+threshold",
+    "type": "dns",
+    "subtype": "bind",
+    "severity": "error",
+    "vendor": "bind9 named[2188]",
+    "event_id": null,
+    "fields": [
+      "event_time",
+      "hostname",
+      "vlan"
+    ],
+    "example_log": "2026-04-03T09:58:06Z DNS-EAST-02 Bind9 named[2188]: SERVFAIL response rate exceeded configured threshold",
+    "generation_source": "deterministic"
   }
 ]

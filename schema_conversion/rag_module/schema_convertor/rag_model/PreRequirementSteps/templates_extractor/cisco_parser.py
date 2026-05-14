@@ -293,7 +293,17 @@ class CiscoSyslogGuideParserV2:
 
 
 if __name__ == "__main__":
-    parser = CiscoSyslogGuideParserV2(r"D:\NetworkIncident-HPE\schema_convertor\template\ciscologmsgs.pdf")
+    from pathlib import Path
+    
+    TEMPLATE_DIR = Path(__file__).parent.parent.parent / "template"
+    PDF_FILES = list(TEMPLATE_DIR.glob("*cisco*.pdf")) or list(TEMPLATE_DIR.glob("*.pdf"))
+    
+    if not PDF_FILES:
+        raise FileNotFoundError(f"No PDF files found in {TEMPLATE_DIR}")
+    
+    PDF_PATH = PDF_FILES[0]  # Use first matching Cisco PDF or first PDF found
+    
+    parser = CiscoSyslogGuideParserV2(str(PDF_PATH))
     records = parser.parse_to_dicts()
 
     with open("cisco_event_records_v2.json", "w", encoding="utf-8") as f:

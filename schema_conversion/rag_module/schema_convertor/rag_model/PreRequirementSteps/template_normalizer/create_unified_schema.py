@@ -40,9 +40,12 @@ from pathlib import Path
 # ─────────────────────────────────────────────
 # Paths  –  adjust as needed
 # ─────────────────────────────────────────────
-ARUBA_FILE  = Path(r"D:\NetworkIncident-HPE\aruba_event_records.json")
-CISCO_FILE  = Path(r"D:\NetworkIncident-HPE\cisco_event_records.json")
-OUTPUT_FILE = Path(r"D:\NetworkIncident-HPE\unified_event_kb.json")
+PREREQ_DIR = Path(__file__).parent.parent
+TEMPLATES_EXTRACTED_DIR = PREREQ_DIR / "templates_extracted"
+
+ARUBA_FILE  = TEMPLATES_EXTRACTED_DIR / "aruba_event_records.json"
+CISCO_FILE  = TEMPLATES_EXTRACTED_DIR / "cisco_event_records.json"
+OUTPUT_FILE = PREREQ_DIR / "template_normalizer" / "unified_event_kb.json"
 
 
 # ═══════════════════════════════════════════════════════════════════════

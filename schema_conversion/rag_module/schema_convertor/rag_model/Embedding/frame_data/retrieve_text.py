@@ -98,7 +98,9 @@ def save_json(path: str, data):
 
 
 def main():
-    input_path = r"D:\NetworkIncident-HPE\filtered_event_kb.json"
+    from pathlib import Path
+    
+    input_path = str(Path(__file__).parent.parent / "filter_data" / "output" / "filtered_event_kb.json")
     output_path = "retrieval_ready_kb.json"
 
     records = load_json(input_path)

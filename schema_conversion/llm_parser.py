@@ -1,8 +1,14 @@
+#llm_parser.py
 import json
 import hashlib
+import sys
 from pathlib import Path
 
 import ollama
+
+# Add project root to path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 
 # =========================================================
@@ -13,7 +19,7 @@ MODEL_NAME = "qwen:7b"
 
 INPUT_LOG_FILE = None
 
-OUTPUT_FILE = "parsed_output.jsonl"
+OUTPUT_FILE = project_root / "parsed_output.jsonl"
 
 MAX_LOG_LENGTH = 5000
 
@@ -287,7 +293,7 @@ def parse_log(raw_log):
 # FINAL OUTPUT GENERATOR
 # =========================================================
 
-FINAL_OUTPUT_FILE = "output.json"
+FINAL_OUTPUT_FILE = project_root / "output.json"
 
 
 def generate_final_output():

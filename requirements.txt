@@ -1,0 +1,6 @@
+networkx
+ollama
+faiss-cpu
+numpy
+sentence-transformers
+pdfplumber
