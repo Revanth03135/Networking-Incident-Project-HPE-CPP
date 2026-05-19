@@ -18,8 +18,6 @@ import statistics
 import argparse
 import sys
 import os
-from datetime import datetime
-from collections import defaultdict
 from typing import Dict, List, Optional
 
 # ── shared preprocessing ──────────────────────────────────────────────────────
@@ -29,10 +27,12 @@ from preprocessing import (
     normalize_timestamps,
     correct_clock_skew,
     compute_dynamic_window,
+    json_serializable,
+    restore_datetime_fields,
 )
 
 # ── causal analysis (graph-based, lives in causalInference.py) ────────────────
-from causalInference.causalInference import analyze_cluster
+from causalInference.causalInference import analyze_cluster_detailed
 
 
 
@@ -41,6 +41,9 @@ from causalInference.causalInference import analyze_cluster
 # =========================================================
 
 def cluster_events(events: List[Dict], window_sec: float) -> List[List[Dict]]:
+
+    if not events:
+        return []
 
     sorted_events = sorted(
         events,
@@ -138,6 +141,8 @@ def compute_incident_confidence(
 def build_incident_summary(
     events: List[Dict],
     root:   Optional[Dict],
+    related_event_ids: Optional[List] = None,
+    unrelated_event_ids: Optional[List] = None,
 ) -> Dict:
 
     protocols = list({
@@ -152,6 +157,8 @@ def build_incident_summary(
         "event_count":        len(events),
         "protocols":          protocols,
         "highest_severity":   max(e["severity"] for e in events),
+        "related_event_ids":  related_event_ids or [],
+        "unrelated_event_ids": unrelated_event_ids or [],
     }
 
 
@@ -169,11 +176,38 @@ def build_incidents(clusters: List[List[Dict]]) -> List[Dict]:
         deduped = deduplicate_cluster(cluster)
 
         # ── causal analysis: graph-based scoring & root-cause detection ──
-        chains, root = analyze_cluster(deduped)
+        causal_links, root, incident_flows = analyze_cluster_detailed(deduped)
 
-        incident_confidence = compute_incident_confidence(deduped, chains)
-        root_confidence     = compute_root_confidence(root, chains)
-        summary             = build_incident_summary(deduped, root)
+        incident_confidence = compute_incident_confidence(deduped, causal_links)
+        root_confidence     = compute_root_confidence(root, causal_links)
+
+        connected_ids = set()
+        for link in causal_links:
+            connected_ids.add(link.get("cause_id"))
+            connected_ids.add(link.get("effect_id"))
+
+        if root and root.get("event_uid") is not None:
+            connected_ids.add(root.get("event_uid"))
+
+        all_ids = [e.get("event_uid") for e in deduped if e.get("event_uid") is not None]
+        related_ids = [eid for eid in all_ids if eid in connected_ids]
+        unrelated_ids = [eid for eid in all_ids if eid not in connected_ids]
+
+        summary = build_incident_summary(
+            deduped,
+            root,
+            related_event_ids=related_ids,
+            unrelated_event_ids=unrelated_ids,
+        )
+
+        for event in deduped:
+            event_id = event.get("event_uid")
+            if root and event_id == root.get("event_uid"):
+                event["relation_label"] = "root"
+            elif event_id in connected_ids:
+                event["relation_label"] = "related"
+            else:
+                event["relation_label"] = "unrelated"
 
         devices  = list({e["device"] for e in deduped})
         start    = min(e["corrected_time"] for e in deduped)
@@ -199,7 +233,8 @@ def build_incidents(clusters: List[List[Dict]]) -> List[Dict]:
 
             "events": sorted(deduped, key=lambda x: x["corrected_time"]),
             "root_cause":    root,
-            "causal_chains": chains,
+            "causal_chains": causal_links,
+            "incident_flows": incident_flows,
         }
 
         incidents.append(incident)
@@ -207,7 +242,7 @@ def build_incidents(clusters: List[List[Dict]]) -> List[Dict]:
         print(
             f"[INCIDENT]   {incident['incident_id']} | "
             f"{len(deduped)} events | "
-            f"{len(chains)} causal links | "
+            f"{len(causal_links)} causal links | "
             f"conf={incident_confidence}"
         )
 
@@ -255,8 +290,17 @@ def print_timeline(incidents: List[Dict]) -> None:
                 f"   [{e['corrected_time']}] "
                 f"{e['device']} | "
                 f"{e['subtype']} | "
-                f"{e['message']}{dup}"
+                f"{e['message']}"
+                f" [{e.get('relation_label', 'related')}]"
+                f"{dup}"
             )
+
+        related_ids = incident.get("summary", {}).get("related_event_ids", [])
+        unrelated_ids = incident.get("summary", {}).get("unrelated_event_ids", [])
+        if unrelated_ids:
+            print("\n🧩 Within-window noise candidates:")
+            print(f"   Related IDs  : {related_ids}")
+            print(f"   Unrelated IDs: {unrelated_ids}")
 
         print("\n🔗 Causal Relationships:")
 
@@ -270,31 +314,21 @@ def print_timeline(incidents: List[Dict]) -> None:
         else:
             print("   No causal relationships found.")
 
-
-# =========================================================
-# SERIALISATION HELPER
-# =========================================================
-
-def json_serializable(obj):
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    raise TypeError
+        print("\n🧭 Incident Flow:")
+        if incident.get("incident_flows"):
+            primary_flow = incident["incident_flows"][0]
+            flow_steps = [
+                f"{step['subtype']}@{step['device']}"
+                for step in primary_flow.get("steps", [])
+            ]
+            print(f"   {' -> '.join(flow_steps)}")
+        else:
+            print("   No coherent flow extracted.")
 
 
 # =========================================================
 # MAIN PIPELINE
 # =========================================================
-
-def restore_datetime_fields(events: List[Dict]) -> List[Dict]:
-    """Convert datetime strings back to datetime objects for preprocessed data."""
-    for e in events:
-        for field in ["event_time", "ingestion_time", "corrected_time"]:
-            if field in e and isinstance(e[field], str):
-                try:
-                    e[field] = datetime.fromisoformat(e[field].replace("Z", "+00:00"))
-                except (ValueError, TypeError):
-                    pass
-    return events
 
 
 def run_pipeline(

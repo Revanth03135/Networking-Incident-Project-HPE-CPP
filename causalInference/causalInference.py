@@ -20,7 +20,6 @@ from typing import Dict, List, Optional, Tuple
 
 import networkx as nx
 import sys
-from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -45,14 +44,16 @@ DEFAULT_CAUSAL_MAP: Dict[str, List[str]] = {
     "arp":                    ["spanning_tree", "interface", "security", "stability"],
     "spanning_tree":          ["interface", "bgp"],
     "interface":              ["bgp", "security", "system"],
-    "bgp":                    ["bgp", "interface"],
+    "bgp":                    ["bgp", "interface", "routing", "dns"],
     "security":               ["system"],
     "stability":              ["security", "interface"],
     "system":                 ["interface"],
     "packet_drop":            ["routing", "network", "security"],
     "authentication_failure": ["security", "system"],
     "link_down":              ["routing", "bgp"],
-    "routing":                ["network", "bgp"],
+    "routing":                ["network", "bgp", "dns"],
+    "dns":                    ["application"],
+    "cpu":                    ["system"],
     "protocol":               ["network", "system"],
 }
 
@@ -90,10 +91,10 @@ def generate_pairs(
     max_time_window: Optional[float] = None,
 ) -> List[Tuple[Dict, Dict]]:
     """
-    Candidate causal pairs where:
-      - A happens strictly before B
-      - time gap ≤ max_time_window
-      - same device OR same interface
+        Candidate causal pairs where:
+            - A happens strictly before B
+            - time gap ≤ max_time_window
+            - same device OR same interface OR semantic relationship
     """
     if max_time_window is None:
         max_time_window = compute_dynamic_window(events)
@@ -122,7 +123,9 @@ def generate_pairs(
                 and A.get("interface_id") == B.get("interface_id")
             )
 
-            if same_device or same_interface:
+            semantic_related = has_semantic_relationship(A, B)
+
+            if same_device or same_interface or semantic_related:
                 pairs.append((A, B))
 
     return pairs
@@ -160,6 +163,22 @@ def get_domain_progression_score(cause_type: str, effect_type: str) -> float:
     return 0.0
 
 
+def has_semantic_relationship(A: Dict, B: Dict) -> bool:
+    """Check subtype/type-level semantic plausibility for A -> B."""
+    subtype_score = get_domain_progression_score(
+        A.get("subtype", "unknown"),
+        B.get("subtype", "unknown"),
+    )
+    if subtype_score > 0:
+        return True
+
+    type_score = get_domain_progression_score(
+        A.get("type", "unknown"),
+        B.get("type", "unknown"),
+    )
+    return type_score > 0
+
+
 # ============================================================
 # STEP 5 — CAUSALITY SCORING
 # ============================================================
@@ -192,11 +211,17 @@ def causality_score(
     if A.get("device") == B.get("device"):
         score += 0.5
 
-    # 4. Domain progression
-    score += get_domain_progression_score(
+    # 4. Domain progression (subtype first, then type fallback)
+    domain_score = get_domain_progression_score(
         A.get("subtype", "unknown"),
         B.get("subtype", "unknown"),
     )
+    if domain_score == 0.0:
+        domain_score = get_domain_progression_score(
+            A.get("type", "unknown"),
+            B.get("type", "unknown"),
+        )
+    score += domain_score
 
     # 5. Severity escalation
     if get_severity_score(A) < get_severity_score(B):
@@ -301,6 +326,101 @@ def extract_chains(
     return chains
 
 
+def select_primary_root(G: nx.DiGraph, root_ids: List[str]) -> Optional[str]:
+    """
+    Select the strongest root candidate:
+    - highest out_degree
+    - then highest outgoing confidence sum
+    - then earliest timestamp
+    """
+    if not root_ids:
+        return None
+
+    ranked = []
+    for root_id in root_ids:
+        out_degree = G.out_degree(root_id)
+        confidence_sum = sum(
+            G.edges[root_id, child].get("confidence", 0.0)
+            for child in G.successors(root_id)
+        )
+        root_event = G.nodes[root_id].get("data", {})
+        root_time = root_event.get("corrected_time") or root_event.get("event_time")
+        if isinstance(root_time, str):
+            root_time = datetime.fromisoformat(root_time.replace("Z", "+00:00"))
+
+        ranked.append((root_id, out_degree, confidence_sum, root_time))
+
+    ranked.sort(
+        key=lambda item: (
+            item[1],
+            item[2],
+            -item[3].timestamp() if isinstance(item[3], datetime) else float("-inf"),
+        ),
+        reverse=True,
+    )
+    return ranked[0][0]
+
+
+def build_incident_flows(
+    G: nx.DiGraph,
+    root_ids: List[str],
+) -> List[Dict]:
+    """
+    Build ordered incident flows from root causes to leaves.
+    Each flow includes the node sequence and step-level metadata.
+    """
+    chain_paths = extract_chains(G, root_ids)
+    if not chain_paths and root_ids:
+        chain_paths = [[root_id] for root_id in root_ids]
+
+    flows: List[Dict] = []
+
+    for idx, path in enumerate(chain_paths, start=1):
+        steps = []
+        edge_confidences = []
+
+        for node_id in path:
+            event = G.nodes[node_id].get("data", {})
+            steps.append(
+                {
+                    "event_uid": event.get("event_uid"),
+                    "subtype": event.get("subtype"),
+                    "severity": event.get("severity"),
+                    "device": event.get("device"),
+                    "interface_id": event.get("interface_id"),
+                    "timestamp": event.get("corrected_time") or event.get("event_time"),
+                }
+            )
+
+        for i in range(len(path) - 1):
+            source_id = path[i]
+            target_id = path[i + 1]
+            edge_confidences.append(G.edges[source_id, target_id].get("confidence", 0.0))
+
+        flow_score = round(sum(edge_confidences), 3)
+        flow_confidence = round(sum(edge_confidences) / len(edge_confidences), 3) if edge_confidences else 0.0
+
+        flows.append(
+            {
+                "flow_id": f"FLOW-{idx:03d}",
+                "root_event_id": path[0],
+                "leaf_event_id": path[-1],
+                "path_event_ids": path,
+                "length": len(path),
+                "flow_score": flow_score,
+                "flow_confidence": flow_confidence,
+                "steps": steps,
+            }
+        )
+
+    flows.sort(
+        key=lambda flow: (flow["length"], flow["flow_score"]),
+        reverse=True,
+    )
+
+    return flows
+
+
 # ============================================================
 # STEP 9 — FORMAT CAUSAL LINK
 # ============================================================
@@ -339,6 +459,7 @@ def get_incident_summary(
     G:           nx.DiGraph,
     root_causes: List[str],
     chains:      List[List[str]],
+    incident_flows: Optional[List[Dict]] = None,
 ) -> Dict:
 
     all_events  = list(G.nodes(data=True))
@@ -363,6 +484,7 @@ def get_incident_summary(
         "duration_sec":     round(duration, 2),
         "causal_links":     causal_links,
         "chains":           chains,
+        "incident_flows":   incident_flows or [],
     }
 
 
@@ -387,12 +509,24 @@ def analyze_cluster(
         causal_links — list of format_causal_link dicts
         root_cause_event — the event dict identified as root cause, or earliest event
     """
+    links, root, _ = analyze_cluster_detailed(events, threshold=threshold)
+    return links, root
+
+
+def analyze_cluster_detailed(
+    events: List[Dict],
+    threshold: float = 1.5,
+) -> Tuple[List[Dict], Optional[Dict], List[Dict]]:
+    """
+    Detailed cluster analysis returning links, chosen root, and ordered incident flows.
+    """
     if not events:
-        return [], None
+        return [], None, []
 
     time_window  = compute_dynamic_window(events)
     G            = build_causal_graph(events, threshold=threshold, time_window=time_window)
     root_ids     = find_root_causes(G)
+    incident_flows = build_incident_flows(G, root_ids)
 
     causal_links = [
         format_causal_link(G, src, tgt)
@@ -401,8 +535,9 @@ def analyze_cluster(
 
     root_event: Optional[Dict] = None
 
-    if root_ids:
-        root_event = G.nodes[root_ids[0]].get("data")
+    primary_root_id = select_primary_root(G, root_ids)
+    if primary_root_id:
+        root_event = G.nodes[primary_root_id].get("data")
 
     # Fallback: earliest event in the cluster
     if root_event is None and events:
@@ -411,7 +546,7 @@ def analyze_cluster(
             key=lambda x: x.get("corrected_time") or x.get("event_time"),
         )
 
-    return causal_links, root_event
+    return causal_links, root_event, incident_flows
 
 
 # ============================================================
@@ -508,9 +643,13 @@ def run_causal_inference(
     chains = extract_chains(G, root_causes)
     logger.info(f"OK Extracted {len(chains)} chain(s)")
 
+    logger.info("\n[STEP 8.1] Building incident flows...")
+    incident_flows = build_incident_flows(G, root_causes)
+    logger.info(f"OK Extracted {len(incident_flows)} ranked flow(s)")
+
     # Step 9: Summary
     logger.info("\n[STEP 9] Generating incident summary...")
-    summary = get_incident_summary(G, root_causes, chains)
+    summary = get_incident_summary(G, root_causes, chains, incident_flows=incident_flows)
 
     print_chains(G, chains)
 

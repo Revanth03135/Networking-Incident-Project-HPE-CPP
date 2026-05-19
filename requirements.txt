@@ -4,3 +4,8 @@ faiss-cpu
 numpy
 sentence-transformers
 pdfplumber
+python-dateutil
+requests
+python-dotenv
+google-generativeai
+flask

@@ -112,13 +112,23 @@ def normalize_timestamps(
 
     for e in events:
         try:
+            # Parse event_time (required)
             e["event_time"] = datetime.fromisoformat(
-                e["event_time"].replace("Z", "+00:00")
+                e.get("event_time", "").replace("Z", "+00:00")
             ).replace(microsecond=0)
 
-            e["ingestion_time"] = datetime.fromisoformat(
-                e["ingestion_time"].replace("Z", "+00:00")
-            ).replace(microsecond=0)
+            # ingestion_time is optional; fall back to event_time when absent
+            ing = e.get("ingestion_time")
+            if ing:
+                try:
+                    e["ingestion_time"] = datetime.fromisoformat(
+                        ing.replace("Z", "+00:00")
+                    ).replace(microsecond=0)
+                except Exception:
+                    # If parsing fails, set ingestion_time == event_time
+                    e["ingestion_time"] = e["event_time"]
+            else:
+                e["ingestion_time"] = e["event_time"]
 
             valid.append(e)
 
@@ -218,6 +228,19 @@ def json_serializable(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
+def restore_datetime_fields(events: List[Dict]) -> List[Dict]:
+    """Convert ISO datetime string fields back to datetime objects in-place."""
+    for event in events:
+        for field in ["event_time", "ingestion_time", "corrected_time"]:
+            value = event.get(field)
+            if isinstance(value, str):
+                try:
+                    event[field] = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    continue
+    return events
+
+
 # =========================================================
 # MAIN PIPELINE & CLI
 # =========================================================
@@ -257,12 +280,23 @@ def run_preprocessing_pipeline(
     dropped = []
     for e in events:
         try:
+            # Parse event_time (required)
             e["event_time"] = datetime.fromisoformat(
-                e["event_time"].replace("Z", "+00:00")
+                e.get("event_time", "").replace("Z", "+00:00")
             ).replace(microsecond=0)
-            e["ingestion_time"] = datetime.fromisoformat(
-                e["ingestion_time"].replace("Z", "+00:00")
-            ).replace(microsecond=0)
+
+            # ingestion_time is optional; fall back to event_time when absent or unparsable
+            ing = e.get("ingestion_time")
+            if ing:
+                try:
+                    e["ingestion_time"] = datetime.fromisoformat(
+                        ing.replace("Z", "+00:00")
+                    ).replace(microsecond=0)
+                except Exception:
+                    e["ingestion_time"] = e["event_time"]
+            else:
+                e["ingestion_time"] = e["event_time"]
+
             valid_events.append(e)
         except Exception as err:
             e["_parse_error"] = str(err)

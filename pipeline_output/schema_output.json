@@ -1,0 +1,80 @@
+[
+  {
+    "event": {
+      "event_uid": 1,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "warning",
+      "message": "neighbor 10.10.1.2 Down Interface flap"
+    },
+    "device": {
+      "hostname": "CORE-RTR-W1",
+      "ip": null,
+      "vendor": "Cisco",
+      "os": "IOS"
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-04-03T09:58:04+00:00"
+    },
+    "raw": {
+      "message": "2026-04-03T09:58:04Z CORE-RTR-W1 Cisco-IOS %BGP-5-ADJCHANGE: neighbor 10.10.1.2 Down Interface flap"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 2,
+      "event_id": null,
+      "type": "system",
+      "subtype": "cpu",
+      "severity": "warning",
+      "message": "CPU utilization exceeded 85% for 56 seconds"
+    },
+    "device": {
+      "hostname": "MONITOR-NODE-01",
+      "ip": null,
+      "vendor": "Linux",
+      "os": "Linux"
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-04-03T09:58:05+00:00"
+    },
+    "raw": {
+      "message": "2026-04-03T09:58:05Z MONITOR-NODE-01 Linux kernel: CPU utilization exceeded 85% for 56 seconds"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 3,
+      "event_id": null,
+      "type": "system",
+      "subtype": "dns",
+      "severity": "error",
+      "message": "SERVFAIL response rate exceeded configured threshold"
+    },
+    "device": {
+      "hostname": "DNS-EAST-02",
+      "ip": null,
+      "vendor": "Bind",
+      "os": "Bind9"
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-04-03T09:58:06+00:00"
+    },
+    "raw": {
+      "message": "2026-04-03T09:58:06Z DNS-EAST-02 Bind9 named[2188]: SERVFAIL response rate exceeded configured threshold"
+    }
+  }
+]

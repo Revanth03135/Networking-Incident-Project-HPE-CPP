@@ -101,6 +101,10 @@ class LogProcessor:
             "requires_llm": 0,
             "errors": 0
         }
+
+        # Allow skipping LLM-backed stages (useful for offline runs)
+        self.no_llm = False
+
     
     # ========================================================
     # TEMPLATE REGISTRY MANAGEMENT
@@ -277,6 +281,42 @@ class LogProcessor:
             Stage1 extracted data
         """
         
+        # If no_llm mode is enabled, perform a lightweight extraction without
+        # calling external LLM-based stage1 script. This keeps processing
+        # offline-friendly and avoids HTTP calls to local LLM servers.
+        if getattr(self, "no_llm", False):
+            try:
+                # Basic core message is the raw log itself
+                core = raw_log.strip()
+
+                # Try fuzzy timestamp parsing if dateutil is available
+                ts = None
+                try:
+                    from dateutil import parser as date_parser  # type: ignore
+                    parsed = date_parser.parse(core, fuzzy=True)
+                    if parsed.tzinfo is None:
+                        from datetime import timezone
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    ts = parsed.isoformat()
+                except Exception:
+                    ts = None
+
+                if not ts:
+                    from datetime import datetime, timezone
+                    ts = datetime.now(timezone.utc).isoformat()
+
+                return {
+                    "raw_log": raw_log,
+                    "core_message": core,
+                    "timestamp": ts,
+                    "hostname": None,
+                    "ip": None,
+                    "vendor": None,
+                    "os": None,
+                }
+            except Exception as e:
+                return {"error": f"Stage1 (fallback) error: {e}"}
+
         # Create temporary input file
         temp_input = "__temp_single_log.txt"
         
@@ -626,6 +666,46 @@ class LogProcessor:
         # STAGE 1.5: TEMPLATE MATCHING
         # ========================================================
         
+        # If no_llm mode is enabled, skip template generation and LLM analysis
+        if getattr(self, "no_llm", False):
+            print("-> no_llm enabled: skipping template generation and LLM stages")
+            # Build a minimal formatted record and return immediately
+            timestamp = stage1_entry.get("timestamp") or None
+            if not timestamp:
+                from datetime import datetime, timezone
+                timestamp = datetime.now(timezone.utc).isoformat()
+
+            output_record = {
+                "event": {
+                    "event_uid": line_number,
+                    "event_id": None,
+                    "type": "log",
+                    "subtype": "raw",
+                    "severity": "info",
+                    "message": core_message
+                },
+                "device": {
+                    "hostname": stage1_entry.get("hostname") or "unknown",
+                    "ip": stage1_entry.get("ip"),
+                    "vendor": stage1_entry.get("vendor") or "unknown",
+                    "os": stage1_entry.get("os")
+                },
+                "network": {
+                    "interface_id": None,
+                    "vlan": None
+                },
+                "timestamps": {
+                    "event_time": timestamp,
+                    "ingestion_time": timestamp
+                },
+                "raw": {
+                    "message": raw_log
+                }
+            }
+
+            print("[OK] Produced minimal record in no_llm mode")
+            return output_record
+
         print("-> STAGE 1.5: Generating template hash...")
         
         template_entry = self.generate_template_single_log(core_message)
