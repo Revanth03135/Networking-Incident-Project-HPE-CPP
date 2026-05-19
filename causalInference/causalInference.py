@@ -8,7 +8,7 @@ Preprocessing (flatten / timestamps / skew / window) is handled by
 preprocessing.py and imported here.
 
 Public API for timeline_reconstruction.py:
-    analyze_cluster(events, threshold) → (causal_links, root_cause_event)
+    analyze_cluster(events, threshold) -> (causal_links, root_cause_event)
 """
 
 import json
@@ -141,7 +141,7 @@ def get_severity_score(event: Dict) -> int:
 # ============================================================
 
 def get_domain_progression_score(cause_type: str, effect_type: str) -> float:
-    """Score based on how well cause→effect matches the domain map."""
+    """Score based on how well cause->effect matches the domain map."""
     cause_norm  = normalize_string(cause_type)
     effect_norm = normalize_string(effect_type)
 
@@ -173,7 +173,7 @@ def causality_score(
     Composite score for the likelihood that A causes B.
 
     Factors:
-      1. Time proximity   (closer  → stronger)
+      1. Time proximity   (closer  -> stronger)
       2. Same interface   (strong  signal)
       3. Same device      (medium  signal)
       4. Domain progression via DEFAULT_CAUSAL_MAP
@@ -421,7 +421,7 @@ def analyze_cluster(
 def print_chains(G: nx.DiGraph, chains: List[List[str]]) -> None:
 
     if not chains:
-        print("\n⚠ No causal chains found")
+        print("\n[WARNING] No causal chains found")
         return
 
     print("\n" + "=" * 70)

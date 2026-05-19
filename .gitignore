@@ -6,6 +6,11 @@ timeline_output.json
 preprocessed_events.json
 causal_inference_output.json
 enterprise_network_report_*.md
+hpe_logs.txt
+hpe_logs_2.txt
+logs.txt 
+test_logs.txt
+template_registry.json
 
 # Exclude large index files
 *.faiss

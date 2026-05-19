@@ -231,7 +231,9 @@ def print_timeline(incidents: List[Dict]) -> None:
         print(f"Start Time : {incident['start_time']}")
         print(f"End Time   : {incident['end_time']}")
         print(f"Duration   : {incident['duration_sec']} sec")
-        print(f"Devices    : {', '.join(incident['devices'])}")
+        # Filter out None values from devices list
+        devices = [d if d else "Unknown" for d in incident['devices']]
+        print(f"Devices    : {', '.join(devices)}")
 
         root = incident["root_cause"]
 
