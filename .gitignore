@@ -1,0 +1,78 @@
+# Exclude raw logs and output files
+raw_logs.txt
+output.json
+parsed_logs.jsonl
+timeline_output.json
+preprocessed_events.json
+causal_inference_output.json
+enterprise_network_report_*.md
+hpe_logs.txt
+hpe_logs_2.txt
+logs.txt 
+test_logs.txt
+template_registry.json
+datasetphase1.json
+
+# Pipeline outputs (generated analysis)
+pipeline_output/
+converted_*/
+
+# Exclude large index files
+*.faiss
+event_index.faiss
+*.npy
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables (NEVER commit API keys!)
+.env
+.env.local
+*.env
+
+# Sensitive documents
+*.docx
+*.xlsx
+CasualMapping.docx
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Thumbs.db:encryptable
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
