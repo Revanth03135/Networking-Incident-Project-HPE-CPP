@@ -1,7 +1,7 @@
 import json
 import requests
 from pathlib import Path
-
+import re 
 
 # ============================================================
 # PROJECT ROOT PATH
@@ -85,13 +85,30 @@ class CoreMessageSemanticAnalyzer:
 
     def analyze(self, core_message):
 
-        prompt = self.build_prompt(core_message)
+        try:
+            prompt = self.build_prompt(core_message)
 
-        result = self.call_llm(prompt)
+            result = self.call_llm(prompt)
 
-        validated = self.validate(result)
+            validated = self.validate(result)
 
-        return validated
+            return validated
+            
+        except Exception as e:
+            print(f"[ERROR] Analysis failed for '{core_message[:80]}': {type(e).__name__}: {e}")
+            raise
+
+    def is_valid_canonical_event(self, value):
+
+        if not value:
+            return False
+
+        return bool(
+            re.fullmatch(
+                r"[a-z0-9_]+",
+                value
+            )
+        )
 
     # ========================================================
     # PROMPT
@@ -107,181 +124,541 @@ Your task:
 Analyze ONLY the provided core semantic message.
 
 Determine:
+
 1. type
 2. subtype
 3. severity
 4. interface_id
+5. event_object
+6. event_action
+7. canonical_event_msg
 
-STRICT RULES:
+Return ONLY valid JSON.
+
+STRICT RULES
 ------------
-1. Return ONLY valid JSON
-2. No markdown
-3. No explanation
-4. Do NOT hallucinate
-5. Do NOT invent values
-6. If uncertain, return null 
-7. interface_id must ONLY be extracted if explicitly present
-8. Severity must reflect actual operational impact
-9. Do NOT assume all DOWN events are critical
-10. Do NOT infer vendor/platform
+1. Return ONLY valid JSON.
+2. No markdown.
+3. No explanation.
+4. No comments.
+5. No hallucinations.
+6. Do NOT invent protocol names.
+7. Do NOT invent interfaces.
+8. Do NOT infer vendors.
+9. If uncertain return null.
+10. Use only information directly supported by the message.
 
-ALLOWED TYPES:
+ALLOWED TYPES
 ------------
-- routing
-- security
-- system
-- interface
-- overlay
-- fabric
-- storage
-- orchestration
-- time
-- generic
+routing
+security
+system
+interface
+overlay
+fabric
+storage
+orchestration
+time
+generic
 
-ALLOWED SEVERITIES:
+ALLOWED SEVERITIES
 ------------
-- info
-- warning
-- error
-- critical
+info
+warning
+error
+critical
 
-FIELD DEFINITIONS:
+FIELD DEFINITIONS
 ------------
 
 type:
 High-level operational domain.
 
 Examples:
-- BGP/OSPF -> routing
-- VPN/IPSec -> security
-- CPU/Fan/Power -> system
-- Interface/VLAN/VXLAN -> interface
-- EVPN/VXLAN overlays -> overlay
-- Cassandra/Gossip -> storage
-- Kubernetes/Pods -> orchestration
+
+BGP
+OSPF
+ISIS
+→ routing
+
+Authentication
+VPN
+IPSec
+SSH
+LDAP
+→ security
+
+CPU
+Memory
+Power
+Fan
+Temperature
+→ system
+
+Physical interfaces
+Ports
+VLANs
+Link state
+→ interface
+
+VXLAN
+EVPN
+Overlay tunnels
+→ overlay
+
+STP
+MSTP
+Topology
+LLDP
+→ fabric
+
+Databases
+Replication
+Storage clusters
+→ storage
+
+Kubernetes
+Containers
+Pods
+→ orchestration
+
+NTP
+Clock synchronization
+→ time
+
+Unknown events
+→ generic
 
 subtype:
-Normalized operational subsystem or protocol label.
+Normalized subsystem.
 
 Examples:
-- bgp
-- ospf
-- mstp
-- vxlan
-- evpn
-- vpn
-- dns
-- ntp
-- ldap
-- ssh
-- cpu
-- memory
-- fan
-- power
-- telemetry
-- replication
-- database
-- api
-- interface
-- topology
-- latency
-- kubernetes
-- authentication
-- configuration
-- transceiver
+
+bgp
+ospf
+isis
+stp
+mstp
+vxlan
+evpn
+vpn
+authentication
+ssh
+dns
+ntp
+cpu
+memory
+power
+fan
+temperature
+replication
+database
+configuration
+transceiver
+topology
+interface
 
 severity:
-Operational impact level.
+Operational impact.
 
-Guidelines:
-- informational state -> info
-- transient degradation -> warning
-- failed operation -> error
-- severe outage/data-path failure -> critical
+info:
+Normal state changes.
+
+warning:
+Degradation.
+Threshold exceeded.
+Link flap.
+CRC errors.
+
+error:
+Operation failed.
+
+critical:
+Severe outage.
+Power failure.
+Storage failure.
+Major service loss.
 
 interface_id:
 Extract ONLY if explicitly present.
 
 Examples:
-- vxlan 1
-- Ethernet1/1
-- VLAN 20
-- Tunnel 7.7.7.7
 
-If no explicit interface exists:
-return null.
+Ethernet1/1
+Port 1/1/1
+VLAN 10
+Vxlan1
+Tunnel 7.7.7.7
 
-OUTPUT SCHEMA:
+If absent:
+null
+
+IMPORTANT PROTOCOL RULE
+-----------------------
+
+Never infer protocol names.
+
+Examples:
+
+"connection closed"
+
+DO NOT ASSUME:
+
+bgp
+ospf
+vxlan
+ssh
+
+Use:
+
+type = generic
+
+unless protocol is explicitly mentioned.
+
+EVENT SEMANTICS
+---------------
+
+Determine the operational action.
+
+Allowed event_action values:
+
+up
+down
+created
+deleted
+inserted
+removed
+failure
+restored
+high
+low
+warning
+success
+logout
+login
+detected
+changed
+discovered
+lost
+established
+closed
+flapping
+degraded
+
+Examples:
+
+Interface down
+→ down
+
+Interface up
+→ up
+
+VLAN created
+→ created
+
+VLAN deleted
+→ deleted
+
+Transceiver inserted
+→ inserted
+
+Transceiver removed
+→ removed
+
+Power supply failed
+→ failure
+
+Power restored
+→ restored
+
+CPU utilization high
+→ high
+
+Authentication successful
+→ success
+
+Client logged out
+→ logout
+
+Topology change detected
+→ changed
+
+LLDP neighbor discovered
+→ discovered
+
+event_object
 ------------
-{{
-  "type": null,
-  "subtype": null,
-  "severity": null,
-  "interface_id": null
-}}
 
-EXAMPLES:
-------------
+Determine the normalized object affected.
+
+Examples:
+
+interface
+vlan
+bgp_neighbor
+ospf_neighbor
+vxlan_tunnel
+power_supply
+fan
+cpu
+memory
+authentication
+configuration
+topology
+transceiver
+dns
+ntp
+database_replication
+connection
+
+canonical_event_msg
+--------------------
+
+Generate:
+
+<object>_<action>
+
+Rules:
+
+1. lowercase only
+2. underscores only
+3. no spaces
+4. no IP addresses
+5. no interface names
+6. no timestamps
+7. no vendor names
+8. deterministic naming
+
+Examples:
+
+interface_down
+
+interface_up
+
+vlan_created
+
+vlan_deleted
+
+bgp_neighbor_down
+
+bgp_neighbor_up
+
+ospf_neighbor_down
+
+ospf_neighbor_up
+
+vxlan_tunnel_down
+
+vxlan_tunnel_up
+
+power_supply_failure
+
+power_supply_restored
+
+fan_failure
+
+fan_restored
+
+cpu_high
+
+memory_high
+
+authentication_failure
+
+authentication_success
+
+authentication_logout
+
+configuration_changed
+
+topology_changed
+
+transceiver_inserted
+
+transceiver_removed
+
+database_replication_failure
+
+database_replication_lag_high
+
+dns_resolution_failure
+
+ntp_sync_lost
+
+ntp_sync_restored
+
+NORMALIZATION EXAMPLES
+----------------------
 
 INPUT:
-neighbor 10.10.1.2 Down Interface flap
+Interface Ethernet1/1 went down
 
 OUTPUT:
+
 {{
-  "type": "routing",
-  "subtype": "bgp",
-  "severity": "warning",
-  "interface_id": null
+  "type":"interface",
+  "subtype":"interface",
+  "severity":"warning",
+  "interface_id":"Ethernet1/1",
+  "event_object":"interface",
+  "event_action":"down",
+  "canonical_event_msg":"interface_down"
 }}
 
 INPUT:
-Tunnel 7.7.7.7 forwarding_state is operational
+Port Ethernet1/1 lost carrier
 
 OUTPUT:
+
 {{
-  "type": "overlay",
-  "subtype": "vxlan",
-  "severity": "info",
-  "interface_id": "Tunnel 7.7.7.7"
+  "type":"interface",
+  "subtype":"interface",
+  "severity":"warning",
+  "interface_id":"Ethernet1/1",
+  "event_object":"interface",
+  "event_action":"down",
+  "canonical_event_msg":"interface_down"
 }}
 
 INPUT:
-OSPF neighbor 192.168.2.1 on VLAN 20 changed state from FULL to DOWN
+Ethernet1/1 operationally disabled
 
 OUTPUT:
+
 {{
-  "type": "routing",
-  "subtype": "ospf",
-  "severity": "warning",
-  "interface_id": "VLAN 20"
+  "type":"interface",
+  "subtype":"interface",
+  "severity":"warning",
+  "interface_id":"Ethernet1/1",
+  "event_object":"interface",
+  "event_action":"down",
+  "canonical_event_msg":"interface_down"
 }}
 
 INPUT:
-Power supply PSU-2 failure detected
+BGP session lost
 
 OUTPUT:
+
 {{
-  "type": "system",
-  "subtype": "power",
-  "severity": "critical",
-  "interface_id": null
+  "type":"routing",
+  "subtype":"bgp",
+  "severity":"warning",
+  "interface_id":null,
+  "event_object":"bgp_neighbor",
+  "event_action":"down",
+  "canonical_event_msg":"bgp_neighbor_down"
 }}
 
 INPUT:
-failed to setup network for sandbox 3f2a91 because BGP session unexpectedly closed
+Power supply failure detected
 
 OUTPUT:
+
 {{
-  "type": "orchestration",
-  "subtype": "kubernetes",
-  "severity": "error",
-  "interface_id": null
+  "type":"system",
+  "subtype":"power",
+  "severity":"critical",
+  "interface_id":null,
+  "event_object":"power_supply",
+  "event_action":"failure",
+  "canonical_event_msg":"power_supply_failure"
 }}
+
+INPUT:
+VLAN 10 created
+
+OUTPUT:
+
+{{
+  "type":"interface",
+  "subtype":"vlan",
+  "severity":"info",
+  "interface_id":"VLAN 10",
+  "event_object":"vlan",
+  "event_action":"created",
+  "canonical_event_msg":"vlan_created"
+}}
+
+INPUT:
+Client logged out
+
+OUTPUT:
+
+{{
+  "type":"security",
+  "subtype":"authentication",
+  "severity":"info",
+  "interface_id":null,
+  "event_object":"authentication",
+  "event_action":"logout",
+  "canonical_event_msg":"authentication_logout"
+}}
+
+INPUT:
+Connection closed
+
+OUTPUT:
+
+{{
+  "type":"generic",
+  "subtype":"connection",
+  "severity":"info",
+  "interface_id":null,
+  "event_object":"connection",
+  "event_action":"closed",
+  "canonical_event_msg":"connection_closed"
+}}
+
+DETERMINISM REQUIREMENT
+-----------------------
+
+If two messages describe the same operational meaning,
+they MUST produce exactly the same:
+
+event_object
+event_action
+canonical_event_msg
+
+Examples:
+
+"Interface down"
+"Link failure"
+"Port lost carrier"
+
+ALL MUST RETURN:
+
+event_object = interface
+event_action = down
+canonical_event_msg = interface_down
+
+Examples:
+
+"BGP session closed"
+"BGP neighbor lost"
+"Neighbor adjacency dropped"
+
+ALL MUST RETURN:
+
+event_object = bgp_neighbor
+event_action = down
+canonical_event_msg = bgp_neighbor_down
+
+Examples:
+
+"Power supply failure"
+"PSU fault"
+"Power module failure"
+
+ALL MUST RETURN:
+
+event_object = power_supply
+event_action = failure
+canonical_event_msg = power_supply_failure
 
 NOW ANALYZE THIS CORE MESSAGE:
-------------
-{core_message}
-"""
+
+{core_message}"""
 
     # ========================================================
     # LLM CALL
@@ -299,35 +676,40 @@ NOW ANALYZE THIS CORE MESSAGE:
 
             "options": {
 
-                "temperature": 0,
-
-                "top_p": 0.1,
-
-                "repeat_penalty": 1.0,
-
-                "num_predict": 256
-            }
+    "temperature": 0,
+    "top_p": 0.01,
+    "repeat_penalty": 1.0,
+    "num_predict": 256
+}
         }
 
-        response = requests.post(
-            self.ollama_url,
-            json=payload,
-            timeout=120
-        )
+        try:
+            response = requests.post(
+                self.ollama_url,
+                json=payload,
+                timeout=120
+            )
 
-        response.raise_for_status()
+            response.raise_for_status()
 
-        result = response.json()["response"].strip()
+            result = response.json()["response"].strip()
 
-        # ----------------------------------------------------
-        # Cleanup
-        # ----------------------------------------------------
+            # Cleanup markdown code blocks if present
+            result = result.replace("```json", "")
+            result = result.replace("```", "")
+            result = result.strip()
 
-        result = result.replace("```json", "")
-        result = result.replace("```", "")
-        result = result.strip()
-
-        return json.loads(result)
+            return json.loads(result)
+            
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] Failed to parse LLM response as JSON: {e}")
+            raise
+        except requests.exceptions.RequestException as e:
+            print(f"[ERROR] LLM API request failed: {e}")
+            raise
+        except Exception as e:
+            print(f"[ERROR] Unexpected error in LLM call: {type(e).__name__}: {e}")
+            raise
 
     # ========================================================
     # VALIDATION
@@ -337,45 +719,37 @@ NOW ANALYZE THIS CORE MESSAGE:
 
         validated = {
 
-            "type": None,
-            "subtype": None,
-            "severity": None,
-            "interface_id": None
-        }
+    "type": None,
+    "subtype": None,
+    "severity": None,
+    "interface_id": None,
+    "canonical_event_msg": None
+}
 
-        # ----------------------------------------------------
         # TYPE VALIDATION
-        # ----------------------------------------------------
-
         if result.get("type") in self.allowed_types:
             validated["type"] = result["type"]
 
-        # ----------------------------------------------------
         # SEVERITY VALIDATION
-        # ----------------------------------------------------
-
         if result.get("severity") in self.allowed_severities:
             validated["severity"] = result["severity"]
 
-        # ----------------------------------------------------
         # SAFE COPY
-        # ----------------------------------------------------
-
         if result.get("subtype"):
             validated["subtype"] = result["subtype"]
 
         if result.get("interface_id"):
             validated["interface_id"] = result["interface_id"]
 
-        # ----------------------------------------------------
         # Normalize empty values
-        # ----------------------------------------------------
-
         for k, v in validated.items():
-
             if v in ["", "null", "None"]:
                 validated[k] = None
 
+        # Validate canonical event message
+        if self.is_valid_canonical_event(result.get("canonical_event_msg")):
+            validated["canonical_event_msg"] = result["canonical_event_msg"]
+    
         return validated
 
 

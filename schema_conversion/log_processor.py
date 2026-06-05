@@ -197,47 +197,75 @@ class LogProcessor:
         os = stage1_entry.get("os")
         
         schema = template_entry.get("schema", {})
+        # Prefer stored canonical message, fall back to core_message
+        canonical_event_msg = schema.get("canonical_event_msg") or core_message
         
-        # Get interface_id from schema (may have placeholders)
-        interface_id = schema.get("interface_id")
+        # Get interface_id from schema
+        interface_id_generic = schema.get("interface_id")  # May have placeholders
+        interface_id_actual = schema.get("interface_id_actual")  # Actual value from Stage 2
         
-        # Try to extract actual values and replace placeholders
-        regex_pattern = template_entry.get("regex_pattern")
-        if regex_pattern and interface_id and "<" in interface_id:
-            try:
-                # Match the core_message against the regex to extract values
-                match = re.match(regex_pattern, core_message)
-                if match:
-                    extracted_values = match.groupdict()
-                    
-                    # Map for standard placeholders to field names
-                    placeholder_to_field = {
-                        "<IP>": ["ip"],
-                        "<VNI_ID>": ["vni_id"],
-                        "<VLAN>": ["vlan"],
-                        "<IFACE>": ["interface"],
-                        "<PERCENT>": ["percent", "percent_2", "percent_3"],  # Handle counted variants
-                        "<DURATION>": ["duration", "duration_2", "duration_3"],
-                        "<SECONDS>": ["seconds", "seconds_2", "seconds_3"],
-                        "<AGGREGATE>": ["aggregate", "aggregate_2", "aggregate_3"],
-                        "<VPN_NAME>": ["vpn_name"],
-                        "<USER>": ["user"],
-                        "<NUM>": ["num"],
-                        "<INSTANCE_ID>": ["instance_id"],
-                    }
-                    
-                    # Replace placeholders with actual values
-                    for placeholder, field_names in placeholder_to_field.items():
-                        if placeholder in interface_id:
-                            # Try to find a matching extracted value
-                            for field_name in field_names:
-                                if field_name in extracted_values:
-                                    actual_value = extracted_values[field_name]
-                                    interface_id = interface_id.replace(placeholder, str(actual_value), 1)
-                                    break
-            except Exception as e:
-                # If extraction fails, keep the placeholder as is
-                pass
+        # PRIORITY: Use stored actual value if available (most reliable)
+        if interface_id_actual:
+            interface_id = interface_id_actual
+        else:
+            # Fallback: Try regex extraction to replace placeholders
+            interface_id = interface_id_generic
+            regex_pattern = template_entry.get("regex_pattern")
+            
+            if regex_pattern and interface_id and "<" in interface_id:
+                try:
+                    # Match the core_message against the regex to extract values
+                    match = re.match(regex_pattern, core_message)
+                    if match:
+                        extracted_values = match.groupdict()
+                        
+                        # Map for standard placeholders to field names
+                        placeholder_to_field = {
+                            "<IP>": ["ip"],
+                            "<VNI_ID>": ["vni_id"],
+                            "<VLAN>": ["vlan"],
+                            "<IFACE>": ["interface", "iface", "port"],
+                            "<PERCENT>": ["percent", "percent_2", "percent_3"],
+                            "<DURATION>": ["duration", "duration_2", "duration_3"],
+                            "<SECONDS>": ["seconds", "seconds_2", "seconds_3"],
+                            "<AGGREGATE>": ["aggregate", "aggregate_2", "aggregate_3"],
+                            "<VPN_NAME>": ["vpn_name"],
+                            "<USER>": ["user"],
+                            "<NUM>": ["num"],
+                            "<INSTANCE_ID>": ["instance_id"],
+                        }
+                        
+                        # Replace placeholders with actual values
+                        for placeholder, field_names in placeholder_to_field.items():
+                            if placeholder in interface_id:
+                                for field_name in field_names:
+                                    if field_name in extracted_values:
+                                        actual_value = extracted_values[field_name]
+                                        interface_id = interface_id.replace(placeholder, str(actual_value), 1)
+                                        break
+                except Exception as e:
+                    # If extraction fails, keep whatever interface_id we have
+                    pass
+        
+        # Parse interface_id to separate VLAN from interface
+        parsed_vlan = None
+        parsed_interface_id = interface_id
+        
+        if interface_id:
+            interface_id_lower = str(interface_id).lower()
+            
+            # Check if it's a VLAN
+            if interface_id_lower.startswith("vlan"):
+                # Extract VLAN number: "VLAN 10" -> "10" or "Vlan10" -> "10"
+                vlan_match = re.search(r'\d+', interface_id)
+                if vlan_match:
+                    parsed_vlan = vlan_match.group()
+                    parsed_interface_id = None  # No interface_id for VLAN entries
+            else:
+                # It's a port/interface - remove common prefixes
+                # "Port 1/1/1" -> "1/1/1"
+                # "port 1/1/1" -> "1/1/1"
+                parsed_interface_id = re.sub(r'^[Pp]ort\s+', '', str(interface_id))
         
         return {
             "event": {
@@ -246,7 +274,7 @@ class LogProcessor:
                 "type": schema.get("type") or "generic",
                 "subtype": schema.get("subtype"),
                 "severity": schema.get("severity") or "info",
-                "message": core_message
+                "message": canonical_event_msg
             },
             "device": {
                 "hostname": hostname,
@@ -255,8 +283,8 @@ class LogProcessor:
                 "os": os
             },
             "network": {
-                "interface_id": interface_id,
-                "vlan": None
+                "interface_id": parsed_interface_id,
+                "vlan": parsed_vlan
             },
             "timestamps": {
                 "event_time": timestamp
@@ -507,6 +535,26 @@ class LogProcessor:
         subtype = stage2_entry.get("subtype")
         severity = stage2_entry.get("severity") or "info"
         interface_id = stage2_entry.get("interface_id")
+        canonical_event_msg = stage2_entry.get("canonical_event_msg") or core_message
+        
+        # Parse interface_id to separate VLAN from interface
+        parsed_vlan = None
+        parsed_interface_id = interface_id
+        
+        if interface_id:
+            interface_id_lower = str(interface_id).lower()
+            
+            # Check if it's a VLAN
+            if interface_id_lower.startswith("vlan"):
+                # Extract VLAN number: "VLAN 10" -> "10" or "Vlan10" -> "10"
+                vlan_match = re.search(r'\d+', interface_id)
+                if vlan_match:
+                    parsed_vlan = vlan_match.group()
+                    parsed_interface_id = None  # No interface_id for VLAN entries
+            else:
+                # It's a port/interface - remove common prefixes
+                # "Port 1/1/1" -> "1/1/1"
+                parsed_interface_id = re.sub(r'^[Pp]ort\s+', '', str(interface_id))
         
         return {
             "event": {
@@ -515,7 +563,7 @@ class LogProcessor:
                 "type": event_type,
                 "subtype": subtype,
                 "severity": severity,
-                "message": core_message
+                "message": canonical_event_msg
             },
             "device": {
                 "hostname": hostname,
@@ -524,8 +572,8 @@ class LogProcessor:
                 "os": os
             },
             "network": {
-                "interface_id": interface_id,
-                "vlan": None
+                "interface_id": parsed_interface_id,
+                "vlan": parsed_vlan
             },
             "timestamps": {
                 "event_time": timestamp
@@ -599,7 +647,9 @@ class LogProcessor:
             "severity": stage2_entry.get("severity"),
             "vendor": stage1_entry.get("vendor"),
             "os": stage1_entry.get("os"),
-            "interface_id": generic_interface_id
+            "canonical_event_msg": stage2_entry.get("canonical_event_msg"),
+            "interface_id": generic_interface_id,
+            "interface_id_actual": interface_id_from_log
         }
         
         registry_entry = {

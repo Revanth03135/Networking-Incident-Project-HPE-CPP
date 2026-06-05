@@ -102,7 +102,8 @@ def format_event_record(stage_data: Dict, line_number: int) -> Dict:
     subtype = semantic.get("subtype")
     severity = semantic.get("severity") or "info"
     interface_id = semantic.get("interface_id")
-    
+    canonical_event_msg = semantic.get("canonical_event_msg")
+
     return {
         "event": {
             "event_uid": line_number,
@@ -110,7 +111,7 @@ def format_event_record(stage_data: Dict, line_number: int) -> Dict:
             "type": event_type,
             "subtype": subtype,
             "severity": severity,
-            "message": core_message
+            "message": canonical_event_msg 
         },
         "device": {
             "hostname": hostname,

@@ -91,6 +91,7 @@ class SemanticTemplateGenerator:
 "<VNI_ID>":
     r"(?P<vni_id>\d+)",
 
+
 "<VLAN>":
     r"(?P<vlan>\d+)",
 
@@ -123,7 +124,9 @@ class SemanticTemplateGenerator:
 
 
     "<USER>":
-        r"(?P<user>[A-Za-z0-9_.-]+)"
+        r"(?P<user>[A-Za-z0-9_.-]+)",
+    
+    "<LACP_STATE>" : r"(?P<lacp_state>[A-Z]+)"
 }
 
     # ========================================================

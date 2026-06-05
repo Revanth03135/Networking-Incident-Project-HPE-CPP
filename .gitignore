@@ -12,6 +12,9 @@ logs.txt
 test_logs.txt
 template_registry.json
 datasetphase1.json
+log1.txt
+schema_conversion.zip
+pipeline_output.zip
 
 # Pipeline outputs (generated analysis)
 pipeline_output/
