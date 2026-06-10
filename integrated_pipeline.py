@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 
 from dotenv import load_dotenv
 
-from causalInference.causalInference import analyze_cluster_detailed
+from causalInference.causalInference import analyze_incident
 from preprocessing import (
     json_serializable,
     restore_datetime_fields,
@@ -209,7 +209,7 @@ def generate_visualization_html(timeline_incidents: List[Dict], output_path: Pat
 
 def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dict, output_path: Path) -> None:
     total_events = sum(len(i.get("events", [])) for i in timeline_incidents)
-    total_links = causal_summary.get("num_causal_links", 0)
+    total_links = causal_summary.get("total_causal_links", 0)
     roots = causal_summary.get("root_causes", [])
     devices = causal_summary.get("affected_devices", [])
 
@@ -229,7 +229,11 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
 
     if roots:
         for root in roots:
-            lines.append(f"- {root}")
+            lines.append(
+        f"- Incident {root['incident_id']} "
+        f"-> {root['subtype']} "
+        f"(device={root['device']}, score={root['score']})"
+    )
     else:
         lines.append("- No high-confidence root trigger was detected")
 
@@ -263,48 +267,46 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
 
 
 def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
-    incident_analyses = []
-    all_links = []
-    all_flows = []
-    all_roots = []
+
+    incident_results = []
+
+    total_links = 0
+    root_causes = []
     affected_devices = set()
 
     for incident in timeline_incidents:
-        events = restore_datetime_fields(incident.get("events", []))
-        links, root_event, flows = analyze_cluster_detailed(events, threshold=1.0)
 
-        all_links.extend(links)
-        all_flows.extend(flows)
-        if root_event:
-            all_roots.append(root_event.get("event_uid"))
+        result = analyze_incident(incident)
 
-        for event in events:
-            device = event.get("device")
-            if device:
-                affected_devices.add(device)
+        incident_results.append(result)
 
-        incident_analyses.append(
-            {
-                "incident_id": incident.get("incident_id"),
-                "root_cause": root_event,
-                "causal_links": links,
-                "incident_flows": flows,
-            }
-        )
+        total_links += len(result.get("causal_links", []))
 
-    result = {
-        "num_incidents": len(timeline_incidents),
-        "num_events": sum(len(inc.get("events", [])) for inc in timeline_incidents),
-        "num_causal_links": len(all_links),
-        "num_flows": len(all_flows),
-        "root_causes": all_roots,
-        "affected_devices": sorted(affected_devices),
-        "causal_links": all_links,
-        "incident_flows": all_flows,
-        "incident_analyses": incident_analyses,
+        root = result.get("root_cause")
+        if root:
+            root_causes.append(
+                {
+                    "incident_id": result.get("incident_id"),
+                    "event_uid": root.get("event_uid"),
+                    "subtype": root.get("normalized_subtype"),
+                    "device": root.get("device"),
+                    "message": root.get("message"),
+                    "score": root.get("root_score"),
+                }
+            )
+
+        for event in incident.get("events", []):
+            dev = event.get("device")
+            if dev:
+                affected_devices.add(dev)
+
+    return {
+        "total_incidents": len(incident_results),
+        "total_causal_links": total_links,
+        "affected_devices": sorted(list(affected_devices)),
+        "root_causes": root_causes,
+        "incidents": incident_results,
     }
-
-    return json.loads(json.dumps(result, default=json_serializable))
 
 
 def maybe_generate_llm_report(

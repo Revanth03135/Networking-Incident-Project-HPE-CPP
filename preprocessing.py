@@ -216,7 +216,8 @@ def compute_dynamic_window(events: List[Dict]) -> float:
     q3         = gaps[(3 * n) // 4]
     iqr        = q3 - q1
     median_gap = gaps[n // 2]
-    window     = max(2.0, median_gap + 1.5 * iqr)
+    window = max(2.0, median_gap + 1.5 * iqr)
+
 
     print(f"[WINDOW]     OK median gap={median_gap:.2f}s | IQR={iqr:.2f}s")
     print(f"[WINDOW]     OK Dynamic clustering window={window:.2f}s")

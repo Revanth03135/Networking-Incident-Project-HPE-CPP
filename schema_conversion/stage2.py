@@ -69,8 +69,16 @@ class CoreMessageSemanticAnalyzer:
             "orchestration",
             "time",
             "generic"
+            
         ]
-
+        self.allowed_subtypes = [
+            "bgp", "bgp session down", "bgp neighbor down",
+            "ospf", "ospf neighbor down", "ospf adjacency lost",
+            "interface", "interface flap", "interface down", "link down",
+            "arp", "spanning_tree", "routing", "packet_drop",
+            "cpu", "cpu high", "memory", "system", "security",
+            "authentication_failure", "dns", "generic"
+        ]
         self.allowed_severities = [
 
             "info",
@@ -146,8 +154,8 @@ STRICT RULES
 7. Do NOT invent interfaces.
 8. Do NOT infer vendors.
 9. If uncertain return null.
-10. Use only information directly supported by the message.
-
+10.Use only information directly supported by the message.
+11.Choose the closest match from the allowed_subtypes list.
 ALLOWED TYPES
 ------------
 routing

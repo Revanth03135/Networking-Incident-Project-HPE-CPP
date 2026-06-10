@@ -1,1208 +1,254 @@
 """
-causalInference.py — Unified Causal Inference Engine.
+causalInference.py — Production Network Root Cause Analysis Engine
 
-Responsibility: score event pairs, build a directed causal graph, detect
-root-cause nodes, and extract propagation chains.
-
-Preprocessing (flatten / timestamps / skew / window) is handled by
-preprocessing.py and imported here.
-
-Public API for timeline_reconstruction.py:
-    analyze_cluster(events, threshold) -> (causal_links, root_cause_event)
+Reads timeline_output.json and produces deterministic production-safe RCA.
+No LLM can override deterministic sanity checks.
 """
 
-import json
-import logging
 import argparse
-import os
+import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import networkx as nx
-import requests
-import sys
+SEV = {"debug": 0, "info": 1, "notice": 1, "warning": 2, "warn": 2, "error": 3, "err": 3, "critical": 4, "crit": 4}
+BENIGN = {"snmp", "ntp", "vlan", "lldp", "transceiver", "interface_up", "mac_auth_success", "dot1x_logout", "bgp"}
+ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change"}
 
-from dotenv import load_dotenv
-
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-load_dotenv()
-
-from preprocessing import (
-    normalize_string,
-    flatten_event,
-    flatten_events,
-    normalize_timestamps,
-    correct_clock_skew,
-    compute_dynamic_window,
-)
-
-logger = logging.getLogger(__name__)
-
-
-# ============================================================
-# CAUSAL DOMAIN MAP  (extended — authoritative copy)
-# ============================================================
-
-DEFAULT_CAUSAL_MAP: Dict[str, List[str]] = {
-    "arp":                    ["spanning_tree", "interface", "security", "stability"],
-    "spanning_tree":          ["interface", "bgp"],
-    "interface":              ["bgp", "security", "system"],
-    "bgp":                    ["bgp", "interface", "routing", "dns"],
-    "security":               ["system"],
-    "stability":              ["security", "interface"],
-    "system":                 ["interface"],
-    "packet_drop":            ["routing", "network", "security"],
-    "authentication_failure": ["security", "system"],
-    "link_down":              ["routing", "bgp"],
-    "routing":                ["network", "bgp", "dns"],
-    "dns":                    ["application"],
-    "cpu":                    ["system"],
-    "protocol":               ["network", "system"],
+BASE = {
+    "power": 100, "fan": 55, "crc_errors": 90, "interface_down": 88,
+    "ospf": 80, "bgp": 55, "stp_topology_change": 65,
+    "config_change": 75, "ssh_bruteforce": 78, "admin_auth_failure": 70,
+    "dot1x_failure": 72, "interface_up": 10, "snmp": 5, "ntp": 3,
+    "vlan": 8, "lldp": 8, "transceiver": 15, "mac_auth_success": 5,
+    "dot1x_logout": 5,
 }
 
-SEVERITY_MAP: Dict[str, int] = {
-    "info":     1,
-    "warning":  2,
-    "error":    3,
-    "critical": 4,
-}
 
-GROQ_DEFAULT_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-LAST_CAUSAL_REFINEMENT_SOURCE = "heuristic"
+def n(v) -> str:
+    return str(v or "").lower().strip()
 
 
-def _get_groq_api_key() -> str:
-    return os.getenv("GROQ_API", os.getenv("GROQ_API_KEY", "")).strip()
+def parse_dt(v):
+    if isinstance(v, datetime): return v
+    return datetime.fromisoformat(str(v).replace("Z", "+00:00"))
 
 
-def _should_use_groq_reasoning() -> bool:
-    if not _get_groq_api_key():
+def get_time(e):
+    return e.get("corrected_time") or e.get("event_time") or e.get("timestamp")
+
+
+def text(e):
+    return " ".join([n(e.get("type")), n(e.get("subtype")), n(e.get("message")), n(e.get("raw_message")), n(e.get("domain"))])
+
+
+def subtype(e):
+    s = text(e)
+    if "snmpd" in s: return "snmp"
+    if "ntp" in s: return "ntp"
+    if "power supply" in s or "psu" in s: return "power"
+    if "fan" in s: return "fan"
+    if "crc" in s: return "crc_errors"
+    if "off-line" in s or "offline" in s or "link down" in s: return "interface_down"
+    if "on-line" in s or "online" in s: return "interface_up"
+    if "topology change" in s: return "stp_topology_change"
+    if "ospf" in s: return "ospf"
+    if "bgp" in s: return "bgp"
+    if "configuration changed" in s: return "config_change"
+    if "ssh login failed" in s or "maximum attempts" in s: return "ssh_bruteforce"
+    if "authentication failure for user" in s: return "admin_auth_failure"
+    if "802.1x" in s and ("failed" in s or "failure" in s): return "dot1x_failure"
+    if "802.1x" in s and "logged out" in s: return "dot1x_logout"
+    if "mac-auth" in s: return "mac_auth_success"
+    if "transceiver" in s: return "transceiver"
+    if "lldp" in s: return "lldp"
+    if "vlan" in s: return "vlan"
+    return n(e.get("subtype")) or "unknown"
+
+
+def domain(e):
+    st = subtype(e)
+    if st in {"power", "fan"}: return "hardware"
+    if st in {"crc_errors", "interface_down", "interface_up"}: return "physical_link"
+    if st in {"ospf", "bgp"}: return "routing"
+    if st == "stp_topology_change": return "topology"
+    if st == "config_change": return "configuration"
+    if st in {"ssh_bruteforce", "admin_auth_failure"}: return "security"
+    if st in {"dot1x_failure", "dot1x_logout", "mac_auth_success"}: return "access_control"
+    if st in {"snmp", "ntp"}: return "service"
+    return n(e.get("domain")) or n(e.get("type")) or "generic"
+
+
+def port(e):
+    val = e.get("interface_id")
+    if val and str(val) != "<IFACE>": return str(val)
+    m = re.search(r"\bport\s+(\d+/\d+/\d+|\d+/\d+|\d+)\b", text(e), re.I)
+    return m.group(1) if m else None
+
+
+def root_score(e, idx, total):
+    st = subtype(e)
+    sev = SEV.get(n(e.get("severity")), 1)
+    s = text(e)
+    score = BASE.get(st, 20) + sev * 18
+    if "failure" in s or "failed" in s: score += 20
+    if "down" in s or "off-line" in s or "offline" in s: score += 18
+    if "crc" in s or "error" in s: score += 18
+    if st in BENIGN and sev <= 1: score -= 80
+    if st == "bgp" and "established" in s: score -= 45
+    score += max(0, total - idx) * 0.2
+    return round(score, 2)
+
+
+def is_actionable(e):
+    st = subtype(e)
+    sev = SEV.get(n(e.get("severity")), 1)
+    if st in {"snmp", "ntp"} and sev <= 2:
         return False
-
-    disabled = os.getenv("DISABLE_GROQ_REASONING", "").strip().lower()
-    return disabled not in {"1", "true", "yes", "on"}
-
-
-def _event_time_value(event: Dict) -> Any:
-    return event.get("corrected_time") or event.get("event_time")
+    if st in BENIGN and sev <= 1:
+        return False
+    return sev >= 2 or st in ACTIONABLE_LOW_OK
 
 
-def _event_time_iso(event: Dict) -> Optional[str]:
-    value = _event_time_value(event)
-    if isinstance(value, datetime):
-        return value.isoformat()
-    if isinstance(value, str):
-        try:
-            return datetime.fromisoformat(value.replace("Z", "+00:00")).isoformat()
-        except Exception:
-            return value
-    return None
+def relation(a, b) -> Tuple[float, Optional[str]]:
+    ta, tb = parse_dt(get_time(a)), parse_dt(get_time(b))
+    if tb <= ta: return 0, None
+    lag = (tb - ta).total_seconds()
+    if lag > 1800: return 0, None
+    sa, sb = subtype(a), subtype(b)
+    da, db = domain(a), domain(b)
+    score, reasons = 0.0, []
+    if a.get("device") == b.get("device"):
+        score += 0.15; reasons.append("same device")
+    if port(a) and port(a) == port(b):
+        score += 0.35; reasons.append("same port")
 
-
-def _build_event_briefs(events: List[Dict]) -> List[Dict]:
-    briefs = []
-    for event in events:
-        briefs.append(
-            {
-                "event_id": event.get("event_uid"),
-                "time": _event_time_iso(event),
-                "device": event.get("device"),
-                "type": event.get("type"),
-                "subtype": event.get("subtype"),
-                "severity": event.get("severity"),
-                "interface_id": event.get("interface_id"),
-                "message": event.get("message"),
-            }
-        )
-    return briefs
-
-
-def _build_pair_evidence(events: List[Dict], max_pairs: int = 16) -> List[Dict]:
-    max_time_window = compute_dynamic_window(events)
-    evidence: List[Dict] = []
-
-    for i in range(len(events)):
-        for j in range(i + 1, len(events)):
-            A = events[i]
-            B = events[j]
-
-            t_a = _event_time_value(A)
-            t_b = _event_time_value(B)
-
-            if t_a >= t_b:
-                continue
-
-            lag = time_diff(A, B)
-            if lag > max_time_window:
-                continue
-
-            same_device = A.get("device") == B.get("device")
-            same_interface = bool(A.get("interface_id") and A.get("interface_id") == B.get("interface_id"))
-            semantic_related = has_semantic_relationship(A, B)
-
-            evidence.append(
-                {
-                    "cause_id": A.get("event_uid"),
-                    "effect_id": B.get("event_uid"),
-                    "lag_sec": round(lag, 2),
-                    "same_device": same_device,
-                    "same_interface": same_interface,
-                    "semantic_related": semantic_related,
-                    "deterministic_score": round(causality_score(A, B), 3),
-                    "cause": {
-                        "device": A.get("device"),
-                        "subtype": A.get("subtype"),
-                        "type": A.get("type"),
-                        "severity": A.get("severity"),
-                        "message": A.get("message"),
-                    },
-                    "effect": {
-                        "device": B.get("device"),
-                        "subtype": B.get("subtype"),
-                        "type": B.get("type"),
-                        "severity": B.get("severity"),
-                        "message": B.get("message"),
-                    },
-                }
-            )
-
-    evidence.sort(key=lambda item: item["deterministic_score"], reverse=True)
-    return evidence[:max_pairs]
-
-
-def _json_extract(text: str) -> Optional[Dict[str, Any]]:
-    if not text:
-        return None
-
-    cleaned = text.strip()
-
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("\n", 1)[-1]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3].strip()
-
-    start = cleaned.find("{")
-    end = cleaned.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return None
-
-    candidate = cleaned[start:end + 1]
-    try:
-        parsed = json.loads(candidate)
-        if isinstance(parsed, dict):
-            return parsed
-    except Exception:
-        return None
-
-    return None
-
-
-def _materialize_flow_from_path(
-    G: nx.DiGraph,
-    path: List[Any],
-    flow_id: str,
-) -> Dict:
-    steps = []
-    edge_confidences = []
-
-    for node_id in path:
-        event = G.nodes[node_id].get("data", {})
-        steps.append(
-            {
-                "event_uid": event.get("event_uid"),
-                "subtype": event.get("subtype"),
-                "severity": event.get("severity"),
-                "device": event.get("device"),
-                "interface_id": event.get("interface_id"),
-                "timestamp": event.get("corrected_time") or event.get("event_time"),
-            }
-        )
-
-    for i in range(len(path) - 1):
-        source_id = path[i]
-        target_id = path[i + 1]
-        if G.has_edge(source_id, target_id):
-            edge_confidences.append(G.edges[source_id, target_id].get("confidence", 0.0))
-        else:
-            edge_confidences.append(0.0)
-
-    flow_score = round(sum(edge_confidences), 3)
-    flow_confidence = round(sum(edge_confidences) / len(edge_confidences), 3) if edge_confidences else 0.0
-
-    return {
-        "flow_id": flow_id,
-        "root_event_id": path[0] if path else None,
-        "leaf_event_id": path[-1] if path else None,
-        "path_event_ids": path,
-        "length": len(path),
-        "flow_score": flow_score,
-        "flow_confidence": flow_confidence,
-        "steps": steps,
+    pairs = {
+        "power": {"fan", "interface_down", "crc_errors"},
+        "crc_errors": {"interface_down", "stp_topology_change", "ospf", "bgp"},
+        "interface_down": {"stp_topology_change", "ospf", "bgp", "dot1x_failure"},
+        "stp_topology_change": {"ospf", "bgp"},
+        "config_change": {"interface_down", "stp_topology_change", "ospf", "bgp", "dot1x_failure"},
+        "admin_auth_failure": {"ssh_bruteforce"},
+        "dot1x_failure": {"dot1x_logout"},
     }
-
-
-# ============================================================
-# STEP 1 — TIME UTILITIES
-# ============================================================
-
-def time_diff(a: Dict, b: Dict) -> float:
-    """Absolute time difference between two events (seconds)."""
-    t1 = a.get("corrected_time") or a.get("event_time")
-    t2 = b.get("corrected_time") or b.get("event_time")
-
-    if isinstance(t1, str):
-        t1 = datetime.fromisoformat(t1.replace("Z", "+00:00"))
-    if isinstance(t2, str):
-        t2 = datetime.fromisoformat(t2.replace("Z", "+00:00"))
-
-    return abs((t2 - t1).total_seconds())
-
-
-def is_before(a: Dict, b: Dict) -> bool:
-    """Return True when event a occurs strictly before event b."""
-    t1 = a.get("corrected_time") or a.get("event_time")
-    t2 = b.get("corrected_time") or b.get("event_time")
-
-    if isinstance(t1, str):
-        t1 = datetime.fromisoformat(t1.replace("Z", "+00:00"))
-    if isinstance(t2, str):
-        t2 = datetime.fromisoformat(t2.replace("Z", "+00:00"))
-
-    return t1 < t2
-
-
-# ============================================================
-# STEP 2 — GENERATE CANDIDATE PAIRS
-# ============================================================
-
-def generate_pairs(
-    events: List[Dict],
-    max_time_window: Optional[float] = None,
-) -> List[Tuple[Dict, Dict]]:
-    """
-        Candidate causal pairs where:
-            - A happens strictly before B
-            - time gap ≤ max_time_window
-            - same device OR same interface OR semantic relationship
-    """
-    if max_time_window is None:
-        max_time_window = compute_dynamic_window(events)
-
-    pairs = []
-    n     = len(events)
-
-    for i in range(n):
-        for j in range(i + 1, n):
-
-            A = events[i]
-            B = events[j]
-
-            t_a = A.get("corrected_time") or A.get("event_time")
-            t_b = B.get("corrected_time") or B.get("event_time")
-
-            if t_a >= t_b:
-                continue
-
-            if time_diff(A, B) > max_time_window:
-                continue
-
-            same_device    = A.get("device") == B.get("device")
-            same_interface = (
-                A.get("interface_id")
-                and A.get("interface_id") == B.get("interface_id")
-            )
-
-            semantic_related = has_semantic_relationship(A, B)
-
-            if same_device or same_interface or semantic_related:
-                pairs.append((A, B))
-
-    return pairs
-
-
-# ============================================================
-# STEP 3 — SEVERITY SCORING
-# ============================================================
-
-def get_severity_score(event: Dict) -> int:
-    return SEVERITY_MAP.get(event.get("severity", "info").lower(), 1)
-
-
-# ============================================================
-# STEP 4 — DOMAIN PROGRESSION SCORE
-# ============================================================
-
-def get_domain_progression_score(cause_type: str, effect_type: str) -> float:
-    """Score based on how well cause->effect matches the domain map."""
-    cause_norm  = normalize_string(cause_type)
-    effect_norm = normalize_string(effect_type)
-
-    possible_effects = DEFAULT_CAUSAL_MAP.get(cause_norm, [])
-
-    if not possible_effects:
-        return 0.0
-
-    if effect_norm in possible_effects:
-        return 1.0
-
-    for effect in possible_effects:
-        if effect in effect_norm or effect_norm in effect:
-            return 0.7
-
-    return 0.0
-
-
-def has_semantic_relationship(A: Dict, B: Dict) -> bool:
-    """Check subtype/type-level semantic plausibility for A -> B."""
-    subtype_score = get_domain_progression_score(
-        A.get("subtype", "unknown"),
-        B.get("subtype", "unknown"),
-    )
-    if subtype_score > 0:
-        return True
-
-    type_score = get_domain_progression_score(
-        A.get("type", "unknown"),
-        B.get("type", "unknown"),
-    )
-    return type_score > 0
-
-
-# ============================================================
-# STEP 5 — CAUSALITY SCORING
-# ============================================================
-
-def causality_score(
-    A: Dict,
-    B: Dict,
-    causal_map: Optional[Dict] = None,
-) -> float:
-    """
-    Composite score for the likelihood that A causes B.
-
-    Factors:
-      1. Time proximity   (closer  -> stronger)
-      2. Same interface   (strong  signal)
-      3. Same device      (medium  signal)
-      4. Domain progression via DEFAULT_CAUSAL_MAP
-      5. Severity escalation
-    """
-    score = 0.0
-
-    # 1. Time proximity
-    score += 1.0 / (1.0 + time_diff(A, B))
-
-    # 2. Same interface
-    if A.get("interface_id") and A.get("interface_id") == B.get("interface_id"):
-        score += 1.0
-
-    # 3. Same device
-    if A.get("device") == B.get("device"):
-        score += 0.5
-
-    # 4. Domain progression (subtype first, then type fallback)
-    domain_score = get_domain_progression_score(
-        A.get("subtype", "unknown"),
-        B.get("subtype", "unknown"),
-    )
-    if domain_score == 0.0:
-        domain_score = get_domain_progression_score(
-            A.get("type", "unknown"),
-            B.get("type", "unknown"),
-        )
-    score += domain_score
-
-    # 5. Severity escalation
-    if get_severity_score(A) < get_severity_score(B):
-        score += 0.5
-
-    return score
-
-
-# ============================================================
-# STEP 6 — BUILD CAUSAL GRAPH
-# ============================================================
-
-def build_causal_graph(
-    events:     List[Dict],
-    threshold:  float          = 1.5,
-    time_window: Optional[float] = None,
-) -> nx.DiGraph:
-    """
-    Directed causal graph.
-    Nodes  = events  (keyed by event_uid)
-    Edges  = probable causal links  (weight = confidence score)
-    Pruning keeps only the strongest predecessor per node.
-    """
-    G = nx.DiGraph()
-
-    for event in events:
-        G.add_node(
-            event["event_uid"],
-            data     = event,
-            device   = event.get("device"),
-            subtype  = event.get("subtype"),
-            severity = event.get("severity"),
-            time     = event.get("corrected_time") or event.get("event_time"),
-        )
-
-    pairs = generate_pairs(events, time_window)
-
-    # Edge pruning: keep only the highest-scoring predecessor for each target
-    best_edges: Dict[str, Tuple[str, str, float]] = {}
-
-    for A, B in pairs:
-        score = causality_score(A, B)
-
-        if score < threshold:
-            continue
-
-        target = B["event_uid"]
-
-        if target not in best_edges or score > best_edges[target][2]:
-            best_edges[target] = (A["event_uid"], B["event_uid"], score)
-
-    for source, target, score in best_edges.values():
-        G.add_edge(source, target, weight=score, confidence=score)
-
-    logger.info(
-        f"Causal graph: {G.number_of_nodes()} nodes, "
-        f"{G.number_of_edges()} edges"
-    )
-
-    return G
-
-
-# ============================================================
-# STEP 7 — ROOT CAUSE DETECTION
-# ============================================================
-
-def find_root_causes(G: nx.DiGraph) -> List[str]:
-    """
-    Root cause nodes: no incoming edges AND at least one outgoing edge.
-    (not caused by anything inside the cluster, but does cause something)
-    """
-    return [
-        node
-        for node in G.nodes()
-        if G.in_degree(node) == 0 and G.out_degree(node) > 0
-    ]
-
-
-# ============================================================
-# STEP 8 — EXTRACT CAUSAL CHAINS
-# ============================================================
-
-def extract_chains(
-    G:           nx.DiGraph,
-    root_nodes:  List[str],
-) -> List[List[str]]:
-    """Root-to-leaf causal paths via nx.all_simple_paths."""
-    chains = []
-
-    leaf_nodes = [n for n in G.nodes() if G.out_degree(n) == 0]
-
-    for root in root_nodes:
-        for leaf in leaf_nodes:
-            if root == leaf:
-                continue
-            try:
-                for path in nx.all_simple_paths(G, source=root, target=leaf):
-                    chains.append(path)
-            except nx.NetworkXNoPath:
-                continue
-
-    return chains
-
-
-def select_primary_root(G: nx.DiGraph, root_ids: List[str]) -> Optional[str]:
-    """
-    Select the strongest root candidate:
-    - highest out_degree
-    - then highest outgoing confidence sum
-    - then earliest timestamp
-    """
-    if not root_ids:
-        return None
-
-    ranked = []
-    for root_id in root_ids:
-        out_degree = G.out_degree(root_id)
-        confidence_sum = sum(
-            G.edges[root_id, child].get("confidence", 0.0)
-            for child in G.successors(root_id)
-        )
-        root_event = G.nodes[root_id].get("data", {})
-        root_time = root_event.get("corrected_time") or root_event.get("event_time")
-        if isinstance(root_time, str):
-            root_time = datetime.fromisoformat(root_time.replace("Z", "+00:00"))
-
-        ranked.append((root_id, out_degree, confidence_sum, root_time))
-
-    ranked.sort(
-        key=lambda item: (
-            item[1],
-            item[2],
-            -item[3].timestamp() if isinstance(item[3], datetime) else float("-inf"),
-        ),
-        reverse=True,
-    )
-    return ranked[0][0]
-
-
-def build_incident_flows(
-    G: nx.DiGraph,
-    root_ids: List[str],
-) -> List[Dict]:
-    """
-    Build ordered incident flows from root causes to leaves.
-    Each flow includes the node sequence and step-level metadata.
-    """
-    chain_paths = extract_chains(G, root_ids)
-    if not chain_paths and root_ids:
-        chain_paths = [[root_id] for root_id in root_ids]
-
-    flows: List[Dict] = []
-
-    for idx, path in enumerate(chain_paths, start=1):
-        steps = []
-        edge_confidences = []
-
-        for node_id in path:
-            event = G.nodes[node_id].get("data", {})
-            steps.append(
-                {
-                    "event_uid": event.get("event_uid"),
-                    "subtype": event.get("subtype"),
-                    "severity": event.get("severity"),
-                    "device": event.get("device"),
-                    "interface_id": event.get("interface_id"),
-                    "timestamp": event.get("corrected_time") or event.get("event_time"),
-                }
-            )
-
-        for i in range(len(path) - 1):
-            source_id = path[i]
-            target_id = path[i + 1]
-            edge_confidences.append(G.edges[source_id, target_id].get("confidence", 0.0))
-
-        flow_score = round(sum(edge_confidences), 3)
-        flow_confidence = round(sum(edge_confidences) / len(edge_confidences), 3) if edge_confidences else 0.0
-
-        flows.append(
-            {
-                "flow_id": f"FLOW-{idx:03d}",
-                "root_event_id": path[0],
-                "leaf_event_id": path[-1],
-                "path_event_ids": path,
-                "length": len(path),
-                "flow_score": flow_score,
-                "flow_confidence": flow_confidence,
-                "steps": steps,
-            }
-        )
-
-    flows.sort(
-        key=lambda flow: (flow["length"], flow["flow_score"]),
-        reverse=True,
-    )
-
-    return flows
-
-
-def _refine_cluster_with_groq(
-    events: List[Dict],
-    G: nx.DiGraph,
-    deterministic_links: List[Dict],
-    deterministic_root: Optional[Dict],
-    deterministic_flows: List[Dict],
-) -> Optional[Dict[str, Any]]:
-    """
-    Use Groq to refine the root cause and causal flow from deterministic evidence.
-    Returns None when Groq is unavailable or the payload is invalid.
-    """
-    if not _should_use_groq_reasoning():
-        return None
-
-    api_key = _get_groq_api_key()
-    if not api_key:
-        return None
-
-    try:
-        from groq import Groq  # type: ignore
-    except Exception as exc:
-        logger.warning(f"Groq client unavailable, using REST fallback: {exc}")
-        Groq = None
-
-    event_briefs = _build_event_briefs(events)
-    pair_evidence = _build_pair_evidence(events)
-
-    deterministic_root_id = deterministic_root.get("event_uid") if deterministic_root else None
-
-    payload = {
-        "incident_context": {
-            "event_count": len(events),
-            "candidate_root_event_id": deterministic_root_id,
-            "candidate_root_subtype": deterministic_root.get("subtype") if deterministic_root else None,
-            "candidate_root_device": deterministic_root.get("device") if deterministic_root else None,
-        },
-        "events": event_briefs,
-        "candidate_links": deterministic_links,
-        "pair_evidence": pair_evidence,
-        "deterministic_flows": deterministic_flows,
-        "task": (
-            "Choose the most likely root cause and causal propagation for this network incident. "
-            "Prefer only evidence-supported links. Identify unrelated noise events inside the same incident window. "
-            "Return strict JSON only."
-        ),
-    }
-
-    system_prompt = (
-        "You are a senior network incident analyst. "
-        "Return only valid JSON with these keys: "
-        "root_event_id, root_confidence, causal_links, incident_flows, unrelated_event_ids, notes. "
-        "Only use event_ids present in the input. Do not invent events. "
-        "Causal links must go from earlier to later events. "
-        "incident_flows should describe the most plausible ordered path(s) as path_event_ids arrays."
-    )
-
-    user_prompt = json.dumps(payload, default=str, indent=2)
-
-    try:
-        if Groq is not None:
-            client = Groq(api_key=api_key)
-            response = client.chat.completions.create(
-                model=os.getenv("GROQ_MODEL", GROQ_DEFAULT_MODEL),
-                temperature=0.1,
-                max_tokens=1200,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-            )
-            content = response.choices[0].message.content if response.choices else ""
-        else:
-            response = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": os.getenv("GROQ_MODEL", GROQ_DEFAULT_MODEL),
-                    "temperature": 0.1,
-                    "max_tokens": 1200,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                },
-                timeout=60,
-            )
-            response.raise_for_status()
-            content = response.json()["choices"][0]["message"]["content"]
-
-        parsed = _json_extract(content or "")
-        if not parsed:
-            logger.warning("Groq returned non-JSON output; using deterministic causal inference")
-            return None
-
-        global LAST_CAUSAL_REFINEMENT_SOURCE
-        LAST_CAUSAL_REFINEMENT_SOURCE = "groq_sdk" if Groq is not None else "groq_rest"
-        return parsed
-    except Exception as exc:
-        logger.warning(f"Groq causal inference failed; using deterministic fallback: {exc}")
-        return None
-
-
-def get_last_causal_refinement_source() -> str:
-    return LAST_CAUSAL_REFINEMENT_SOURCE
-
-
-# ============================================================
-# STEP 9 — FORMAT CAUSAL LINK
-# ============================================================
-
-def format_causal_link(
-    G:         nx.DiGraph,
-    source_id: str,
-    target_id: str,
-) -> Dict:
-    """Serialisable dict for one directed causal edge."""
-    source = G.nodes[source_id]["data"]
-    target = G.nodes[target_id]["data"]
-    edge   = G.edges[source_id, target_id]
-
-    return {
-        "cause_id":       source_id,
-        "cause_subtype":  source.get("subtype"),
-        "cause_device":   source.get("device"),
-        "cause_severity": source.get("severity"),
-
-        "effect_id":       target_id,
-        "effect_subtype":  target.get("subtype"),
-        "effect_device":   target.get("device"),
-        "effect_severity": target.get("severity"),
-
-        "lag_sec":    round(time_diff(source, target), 2),
-        "confidence": round(edge.get("confidence", 0),  2),
-    }
-
-
-# ============================================================
-# STEP 10 — INCIDENT SUMMARY  (used by standalone CLI)
-# ============================================================
-
-def get_incident_summary(
-    G:           nx.DiGraph,
-    root_causes: List[str],
-    chains:      List[List[str]],
-    incident_flows: Optional[List[Dict]] = None,
-) -> Dict:
-
-    all_events  = list(G.nodes(data=True))
-    times       = [e[1]["time"] for e in all_events if e[1]["time"]]
-    start_time  = min(times) if times else None
-    end_time    = max(times) if times else None
-    duration    = (end_time - start_time).total_seconds() if (start_time and end_time) else 0
-    devices     = {e[1]["device"] for e in all_events if e[1]["device"] != "unknown"}
-    causal_links = [
-        format_causal_link(G, src, tgt)
-        for src, tgt in G.edges()
-    ]
-
-    return {
-        "num_events":       G.number_of_nodes(),
-        "num_causal_links": G.number_of_edges(),
-        "num_chains":       len(chains),
-        "root_causes":      root_causes,
-        "affected_devices": list(devices),
-        "start_time":       start_time.isoformat() if start_time else None,
-        "end_time":         end_time.isoformat()   if end_time   else None,
-        "duration_sec":     round(duration, 2),
-        "causal_links":     causal_links,
-        "chains":           chains,
-        "incident_flows":   incident_flows or [],
-    }
-
-
-# ============================================================
-# PUBLIC API FOR timeline_reconstruction.py
-# ============================================================
-
-def analyze_cluster(
-    events:    List[Dict],
-    threshold: float = 1.5,
-) -> Tuple[List[Dict], Optional[Dict]]:
-    """
-    Run causal analysis on an already-preprocessed cluster of flat events.
-    Called by timeline_reconstruction.build_incidents() for each cluster.
-
-    Args:
-        events    : flat, skew-corrected events (output of preprocessing pipeline)
-        threshold : minimum causality score to add a graph edge
-
-    Returns:
-        (causal_links, root_cause_event)
-        causal_links — list of format_causal_link dicts
-        root_cause_event — the event dict identified as root cause, or earliest event
-    """
-    links, root, _ = analyze_cluster_detailed(events, threshold=threshold)
-    return links, root
-
-
-def analyze_cluster_detailed(
-    events: List[Dict],
-    threshold: float = 1.5,
-) -> Tuple[List[Dict], Optional[Dict], List[Dict]]:
-    """
-    Detailed cluster analysis returning links, chosen root, and ordered incident flows.
-    """
-    if not events:
-        return [], None, []
-
-    time_window  = compute_dynamic_window(events)
-    G            = build_causal_graph(events, threshold=threshold, time_window=time_window)
-    root_ids     = find_root_causes(G)
-    incident_flows = build_incident_flows(G, root_ids)
-
-    causal_links = [
-        format_causal_link(G, src, tgt)
-        for src, tgt in G.edges()
-    ]
-
-    root_event: Optional[Dict] = None
-    primary_root_id = select_primary_root(G, root_ids)
-    if primary_root_id:
-        root_event = G.nodes[primary_root_id].get("data")
-
-    # Optional Groq refinement: choose the best root and causal flow from
-    # the deterministic evidence already computed above.
-    groq_result = _refine_cluster_with_groq(
-        events,
-        G,
-        causal_links,
-        root_event,
-        incident_flows,
-    )
-
-    if groq_result:
-        event_by_id = {event.get("event_uid"): event for event in events}
-
-        groq_root_id = groq_result.get("root_event_id")
-        if groq_root_id in event_by_id:
-            root_event = event_by_id[groq_root_id]
-            primary_root_id = groq_root_id
-
-        refined_links: List[Dict] = []
-        for link in groq_result.get("causal_links", []):
-            cause_id = link.get("cause_id")
-            effect_id = link.get("effect_id")
-            if cause_id not in event_by_id or effect_id not in event_by_id:
-                continue
-
-            source_event = event_by_id[cause_id]
-            target_event = event_by_id[effect_id]
-            if not is_before(source_event, target_event):
-                continue
-
-            confidence = link.get("confidence")
-            if confidence is None:
-                confidence = causality_score(source_event, target_event)
-
-            refined_links.append(
-                {
-                    "cause_id": cause_id,
-                    "cause_subtype": source_event.get("subtype"),
-                    "cause_device": source_event.get("device"),
-                    "cause_severity": source_event.get("severity"),
-                    "effect_id": effect_id,
-                    "effect_subtype": target_event.get("subtype"),
-                    "effect_device": target_event.get("device"),
-                    "effect_severity": target_event.get("severity"),
-                    "lag_sec": round(time_diff(source_event, target_event), 2),
-                    "confidence": round(float(confidence), 2),
-                }
-            )
-
-        if refined_links:
-            causal_links = refined_links
-
-            groq_graph = nx.DiGraph()
-            for event in events:
-                groq_graph.add_node(
-                    event.get("event_uid"),
-                    data=event,
-                    device=event.get("device"),
-                    subtype=event.get("subtype"),
-                    severity=event.get("severity"),
-                    time=event.get("corrected_time") or event.get("event_time"),
-                )
-            for link in causal_links:
-                groq_graph.add_edge(
-                    link["cause_id"],
-                    link["effect_id"],
-                    confidence=link.get("confidence", 0.0),
-                    weight=link.get("confidence", 0.0),
-                )
-
-            groq_root_ids = [primary_root_id] if primary_root_id in groq_graph.nodes else find_root_causes(groq_graph)
-            incident_flows = build_incident_flows(groq_graph, groq_root_ids)
-        elif groq_root_id in event_by_id and not incident_flows:
-            incident_flows = build_incident_flows(G, [groq_root_id])
-
-    # Fallback: earliest event in the cluster
-    if root_event is None and events:
-        root_event = min(
-            events,
-            key=lambda x: x.get("corrected_time") or x.get("event_time"),
-        )
-
-    return causal_links, root_event, incident_flows
-
-
-# ============================================================
-# PRETTY PRINT  (standalone / CLI)
-# ============================================================
-
-def print_chains(G: nx.DiGraph, chains: List[List[str]]) -> None:
-
-    if not chains:
-        print("\n[WARNING] No causal chains found")
-        return
-
-    print("\n" + "=" * 70)
-    print("CAUSAL CHAINS")
-    print("=" * 70)
-
-    for i, chain in enumerate(chains, 1):
-        print(f"\nCHAIN {i} ({len(chain)} events):")
-
-        for j, node_id in enumerate(chain):
-            event  = G.nodes[node_id]["data"]
-            arrow  = "-> " if j < len(chain) - 1 else "== "
-
-            print(
-                f"  {arrow}[{event['event_uid']}] "
-                f"{event['device']} | "
-                f"{event['subtype']} ({event['severity']}) | "
-                f"{event.get('corrected_time') or event.get('event_time')}"
-            )
-
-
-# ============================================================
-# STANDALONE PIPELINE  (CLI entry-point only)
-# ============================================================
-
-def run_causal_inference(
-    input_data:     List[Dict],
-    dynamic_window: bool           = True,
-    threshold:      float          = 1.5,
-    causal_map:     Optional[Dict] = None,
-) -> Dict:
-    """
-    Full pipeline from raw HPE events to incident summary.
-    Used when causalInference.py is run directly (not via timeline_reconstruction).
-    """
-    logger.info("=" * 70)
-    logger.info("CAUSAL INFERENCE PIPELINE")
-    logger.info("=" * 70)
-
-    # Step 1: Flatten  (preprocessing.py)
-    logger.info("\n[STEP 1] Flattening events...")
-    flat_events = flatten_events(input_data)
-
-    if not flat_events:
-        logger.error("No valid events to process")
-        return {"error": "No valid events"}
-
-    # Step 2: Timestamps  (preprocessing.py)
-    logger.info("\n[STEP 2] Normalising timestamps...")
-    valid_events, dropped = normalize_timestamps(flat_events)
-
-    if not valid_events:
-        logger.error("No valid timestamps")
-        return {"error": "No valid timestamps"}
-
-    # Step 3: Sort
-    logger.info("\n[STEP 3] Sorting events...")
-    sorted_events = sorted(valid_events, key=lambda x: x["event_time"])
-    logger.info(f"OK Sorted {len(sorted_events)} events")
-
-    # Step 4: Clock skew  (preprocessing.py)
-    logger.info("\n[STEP 4] Correcting clock skew...")
-    correct_clock_skew(sorted_events)
-
-    # Step 5: Time window  (preprocessing.py)
-    if dynamic_window:
-        logger.info("\n[STEP 5] Computing dynamic time window...")
-        time_window = compute_dynamic_window(sorted_events)
+    if sb in pairs.get(sa, set()):
+        score += 0.45; reasons.append(f"{sa} can lead to {sb}")
+    if da == db and da in {"security", "access_control", "hardware", "physical_link", "routing"}:
+        score += 0.2; reasons.append("same incident domain")
+    if lag <= 300: score += 0.15
+    elif lag <= 900: score += 0.08
+    if score < 0.45: return 0, None
+    return round(min(score, 0.99), 2), ", ".join(reasons)
+
+
+def analyze_incident(inc: Dict) -> Dict:
+    events = sorted(inc.get("events", []), key=lambda e: parse_dt(get_time(e)))
+    normalized = []
+    for i, e in enumerate(events, 1):
+        x = dict(e)
+        x.setdefault("event_uid", i)
+        x["normalized_subtype"] = subtype(x)
+        x["normalized_domain"] = domain(x)
+        x["root_score"] = root_score(x, i, len(events))
+        x["actionable"] = is_actionable(x)
+        normalized.append(x)
+
+    actionable_events = [e for e in normalized if e["actionable"]]
+    if actionable_events:
+        root = max(actionable_events, key=lambda e: e["root_score"])
+        classification = "actionable"
     else:
-        logger.info("\n[STEP 5] Using static time window: 10s")
-        time_window = 10.0
+        root = max(normalized, key=lambda e: e["root_score"], default=None)
+        classification = "informational"
 
-    # Step 6: Causal graph
-    logger.info("\n[STEP 6] Building causal graph...")
-    G = build_causal_graph(sorted_events, threshold=threshold, time_window=time_window)
+    links = []
+    linked_uids = set()
+    for i, a in enumerate(normalized):
+        for b in normalized[i + 1:]:
+            conf, reason = relation(a, b)
+            if conf:
+                links.append({
+                    "source_event_uid": a.get("event_uid"),
+                    "target_event_uid": b.get("event_uid"),
+                    "source_subtype": subtype(a),
+                    "target_subtype": subtype(b),
+                    "lag_seconds": (parse_dt(get_time(b)) - parse_dt(get_time(a))).total_seconds(),
+                    "confidence": conf,
+                    "reason": reason,
+                })
+                linked_uids.add(a.get("event_uid")); linked_uids.add(b.get("event_uid"))
+    links = sorted(links, key=lambda x: x["confidence"], reverse=True)[:10]
+    unrelated = [e.get("event_uid") for e in normalized if e.get("event_uid") not in linked_uids and (not root or e.get("event_uid") != root.get("event_uid"))]
 
-    # Step 7: Root causes
-    logger.info("\n[STEP 7] Detecting root causes...")
-    root_causes = find_root_causes(G)
-    logger.info(f"OK Found {len(root_causes)} root cause(s)")
-
-    # Step 8: Chains
-    logger.info("\n[STEP 8] Extracting causal chains...")
-    chains = extract_chains(G, root_causes)
-    logger.info(f"OK Extracted {len(chains)} chain(s)")
-
-    logger.info("\n[STEP 8.1] Building incident flows...")
-    incident_flows = build_incident_flows(G, root_causes)
-    logger.info(f"OK Extracted {len(incident_flows)} ranked flow(s)")
-
-    # Step 9: Summary
-    logger.info("\n[STEP 9] Generating incident summary...")
-    summary = get_incident_summary(G, root_causes, chains, incident_flows=incident_flows)
-
-    print_chains(G, chains)
-
-    logger.info("=" * 70)
-    logger.info("PIPELINE COMPLETE")
-    logger.info("=" * 70)
-
-    return summary
-
-
-# ============================================================
-# I/O HELPERS
-# ============================================================
-
-def _load_events_from_json(path: Path) -> List[Dict]:
-    """Accept a bare list or a dict with an 'events' key."""
-    with path.open("r", encoding="utf-8") as f:
-        payload = json.load(f)
-
-    if isinstance(payload, list):
-        return payload
-
-    if isinstance(payload, dict):
-        maybe = payload.get("events")
-        if isinstance(maybe, list):
-            return maybe
-
-    raise ValueError(
-        "Unsupported JSON structure. Expected a list of events "
-        "or a dict with an 'events' list."
-    )
+    return {
+        "incident_id": inc.get("incident_id"),
+        "incident_type": inc.get("incident_type"),
+        "classification": classification,
+        "event_count": len(normalized),
+        "root_cause": root,
+        "causal_links": links,
+        "possibly_unrelated_events": unrelated,
+        "source": "deterministic-production-rules",
+    }
 
 
-def _write_json(path: Path, data: Dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+def load_timeline(path):
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if isinstance(data, dict) and "incidents" in data: return data["incidents"]
+    if isinstance(data, list): return data
+    raise ValueError("Invalid timeline JSON format")
 
 
-# ============================================================
-# CLI
-# ============================================================
+def save_json(data, path):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+def print_report(results):
+    print("\n" + "=" * 70)
+    print("PRODUCTION NETWORK ROOT CAUSE ANALYSIS REPORT")
+    print("=" * 70)
+    for r in results:
+        root = r.get("root_cause") or {}
+        print(f"\nIncident: {r.get('incident_id')} | {r.get('incident_type')} | {r.get('classification')}")
+        print(f"Events  : {r.get('event_count')}")
+        if r.get("classification") == "informational":
+            print("Observation")
+        else:
+            print("Root Cause")
+        print(f"  Event UID : {root.get('event_uid')}")
+        print(f"  Device    : {root.get('device')}")
+        print(f"  Subtype   : {root.get('normalized_subtype')}")
+        print(f"  Severity  : {root.get('severity')}")
+        print(f"  Score     : {root.get('root_score')}")
+        print(f"  Message   : {root.get('message')}")
+        print("\nCausal Links")
+        for l in r.get("causal_links", []):
+            print(f"  {l['source_subtype']} -> {l['target_subtype']} [lag={l['lag_seconds']}s, conf={l['confidence']}] {l['reason']}")
+        print(f"\nPossibly unrelated events: {r.get('possibly_unrelated_events')}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="HPE Production Causal Inference")
+    parser.add_argument("--timeline", required=True)
+    parser.add_argument("-o", "--output", required=True)
+    args = parser.parse_args()
+    print("\n" + "=" * 60)
+    print(" HPE PRODUCTION CAUSAL INFERENCE ENGINE")
+    print("=" * 60)
+    incidents = load_timeline(args.timeline)
+    results = [analyze_incident(i) for i in incidents]
+    output = {"total_incidents": len(results), "incidents": results}
+    save_json(output, args.output)
+    print_report(results)
+    print("\n" + "=" * 60)
+    print(f"[OUTPUT] Causal analysis written to '{args.output}'")
+    print("=" * 60)
+
 
 if __name__ == "__main__":
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-
-    project_root = Path(__file__).resolve().parents[1]
-
-    parser = argparse.ArgumentParser(
-        description="Run the causal inference pipeline on an events JSON file."
-    )
-    parser.add_argument(
-        "--input", "-i",
-        type=str,
-        default=None,
-        help=(
-            "Path to input JSON (list of events). "
-            "If omitted, uses datasetphase1.json in the project root when present; "
-            "otherwise runs the built-in sample."
-        ),
-    )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=1.0,
-        help="Causality confidence threshold (default: 1.0)",
-    )
-    parser.add_argument(
-        "--static-window",
-        action="store_true",
-        help="Use a static 10s time window instead of a dynamic one.",
-    )
-    parser.add_argument(
-        "--output", "-o",
-        type=str,
-        default="causal_inference_output.json",
-        help="Write the incident summary JSON to this path (default: causal_inference_output.json).",
-    )
-    args = parser.parse_args()
-
-    # ── built-in sample ───────────────────────────────────────────────────────
-    sample_nested_events = [
-        {
-            "event": {
-                "event_uid": "e1", "event_id": "PKT_DROP",
-                "type": "network", "subtype": "packet drop",
-                "severity": "warning", "message": "packet drop occurred",
-            },
-            "device":  {"hostname": "switch-3", "ip": "10.0.0.2", "vendor": "Aruba", "os": "AOS-CX"},
-            "network": {"interface_id": "Gig1/0/4", "vlan": 30, "protocol": None},
-            "timestamps": {
-                "event_time":     "2026-04-20T10:00:02Z",
-                "ingestion_time": "2026-04-20T10:00:22Z",
-            },
-            "raw": {"message": "RAW LOG: packet drop"},
-        },
-        {
-            "event": {
-                "event_uid": "e2", "event_id": "ROUTING_CHANGE",
-                "type": "network", "subtype": "routing failure",
-                "severity": "error", "message": "routing failure detected",
-            },
-            "device":  {"hostname": "switch-3", "ip": "10.0.0.2", "vendor": "Aruba", "os": "AOS-CX"},
-            "network": {"interface_id": "Gig1/0/4", "vlan": 30, "protocol": "BGP"},
-            "timestamps": {
-                "event_time":     "2026-04-20T10:00:05Z",
-                "ingestion_time": "2026-04-20T10:00:25Z",
-            },
-            "raw": {"message": "RAW LOG: routing failure"},
-        },
-        {
-            "event": {
-                "event_uid": "e3", "event_id": "BGP_DOWN",
-                "type": "network", "subtype": "bgp session down",
-                "severity": "critical", "message": "BGP session terminated",
-            },
-            "device":  {"hostname": "switch-3", "ip": "10.0.0.2", "vendor": "Aruba", "os": "AOS-CX"},
-            "network": {"interface_id": "Gig1/0/4", "vlan": 30, "protocol": "BGP"},
-            "timestamps": {
-                "event_time":     "2026-04-20T10:00:08Z",
-                "ingestion_time": "2026-04-20T10:00:28Z",
-            },
-            "raw": {"message": "RAW LOG: BGP DOWN"},
-        },
-    ]
-    # ─────────────────────────────────────────────────────────────────────────
-
-    if args.input:
-        input_path = Path(args.input).expanduser()
-        if not input_path.is_file():
-            raise FileNotFoundError(f"Input file not found: {input_path}")
-        input_events = _load_events_from_json(input_path)
-        source_desc  = str(input_path)
-    else:
-        default_path = project_root / "datasetphase1.json"
-        if default_path.is_file():
-            input_events = _load_events_from_json(default_path)
-            source_desc  = str(default_path)
-        else:
-            input_events = sample_nested_events
-            source_desc  = "built-in sample_nested_events"
-
-    logger.info(f"Input source: {source_desc} ({len(input_events)} raw events)")
-
-    result = run_causal_inference(
-        input_events,
-        dynamic_window = not args.static_window,
-        threshold      = args.threshold,
-    )
-
-    if args.output:
-        output_path = Path(args.output).expanduser()
-        _write_json(output_path, result)
-        logger.info(f"Wrote output JSON: {output_path.resolve()}")
-
-    print("\n" + "=" * 70)
-    print("INCIDENT SUMMARY")
-    print("=" * 70)
-    print(f"Input:           {source_desc}")
-    print(f"Events:          {result['num_events']}")
-    print(f"Causal Links:    {result['num_causal_links']}")
-    print(f"Chains:          {result['num_chains']}")
-    print(f"Root Causes:     {result['root_causes']}")
-    print(f"Affected Devices:{result['affected_devices']}")
-    print(f"Duration:        {result['duration_sec']}s")
-
-    print("\nCausal Links:")
-    for link in result["causal_links"]:
-        print(
-            f"  {link['cause_subtype']} ({link['cause_device']}) "
-            f"-> {link['effect_subtype']} ({link['effect_device']}) "
-            f"[lag={link['lag_sec']}s, conf={link['confidence']}]"
-        )
-
-    print("\nCausal Chains:")
-    for i, chain in enumerate(result["chains"], 1):
-        print(f"  Chain {i}: {' -> '.join(chain)}")
+    main()
