@@ -2,7 +2,7 @@
 causalInference.py — Production Network Root Cause Analysis Engine
 
 Reads timeline_output.json and produces deterministic production-safe RCA.
-No LLM can override deterministic sanity checks.
+Uses NetworkX to build a causal DAG and extract causal sequences.
 """
 
 import argparse
@@ -11,6 +11,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import networkx as nx
 
 SEV = {"debug": 0, "info": 1, "notice": 1, "warning": 2, "warn": 2, "error": 3, "err": 3, "critical": 4, "crit": 4}
 BENIGN = {"snmp", "ntp", "vlan", "lldp", "transceiver", "interface_up", "mac_auth_success", "dot1x_logout", "bgp"}
@@ -24,6 +26,20 @@ BASE = {
     "vlan": 8, "lldp": 8, "transceiver": 15, "mac_auth_success": 5,
     "dot1x_logout": 5,
 }
+
+LAYER = {
+    "power": 0, "fan": 0,
+    "crc_errors": 1, "interface_down": 1,
+    "interface_up": 1, "transceiver": 1,
+    "stp_topology_change": 2, "vlan": 2, "lldp": 2,
+    "mac_auth_success": 2, "dot1x_failure": 2,
+    "ospf": 3, "bgp": 3,
+    "config_change": 3,
+    "ssh_bruteforce": 4, "admin_auth_failure": 4,
+}
+
+RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan", "power", "ntp"}
+RECOVERY_KEYWORDS = {"established", "up", "on-line", "online", "restored", "synchronized", "forwarding"}
 
 
 def n(v) -> str:
@@ -51,7 +67,7 @@ def subtype(e):
     if "fan" in s: return "fan"
     if "crc" in s: return "crc_errors"
     if "off-line" in s or "offline" in s or "link down" in s: return "interface_down"
-    if "on-line" in s or "online" in s: return "interface_up"
+    if "on-line" in s or "online" in s or "link up" in s: return "interface_up"
     if "topology change" in s: return "stp_topology_change"
     if "ospf" in s: return "ospf"
     if "bgp" in s: return "bgp"
@@ -87,6 +103,14 @@ def port(e):
     return m.group(1) if m else None
 
 
+def is_recovery(e):
+    st = subtype(e)
+    s = text(e)
+    if st in RECOVERY_EVENTS and any(kw in s for kw in RECOVERY_KEYWORDS):
+        return True
+    return False
+
+
 def root_score(e, idx, total):
     st = subtype(e)
     sev = SEV.get(n(e.get("severity")), 1)
@@ -96,7 +120,7 @@ def root_score(e, idx, total):
     if "down" in s or "off-line" in s or "offline" in s: score += 18
     if "crc" in s or "error" in s: score += 18
     if st in BENIGN and sev <= 1: score -= 80
-    if st == "bgp" and "established" in s: score -= 45
+    if is_recovery(e): score -= 60
     score += max(0, total - idx) * 0.2
     return round(score, 2)
 
@@ -135,12 +159,102 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
     }
     if sb in pairs.get(sa, set()):
         score += 0.45; reasons.append(f"{sa} can lead to {sb}")
+    
+    # Cross-device correlation based on IP in messages
+    txt_b = text(b)
+    ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text(a))
+    if a.get("device_ip"): ips_a.append(a.get("device_ip"))
+    for ip in ips_a:
+        if ip in txt_b:
+            score += 0.35; reasons.append("shared IP reference")
+            break
+
     if da == db and da in {"security", "access_control", "hardware", "physical_link", "routing"}:
         score += 0.2; reasons.append("same incident domain")
+        
+    layer_a = LAYER.get(sa, 2)
+    layer_b = LAYER.get(sb, 2)
+    if layer_a < layer_b:
+        score += 0.2
+        reasons.append(f"L{layer_a}->L{layer_b} propagation")
+    elif layer_a > layer_b:
+        score -= 0.15
+
     if lag <= 300: score += 0.15
     elif lag <= 900: score += 0.08
     if score < 0.45: return 0, None
     return round(min(score, 0.99), 2), ", ".join(reasons)
+
+
+def build_causal_graph(events, window_sec=1800):
+    G = nx.DiGraph()
+    sorted_events = sorted(events, key=lambda e: parse_dt(get_time(e)))
+    for e in sorted_events:
+        G.add_node(e["event_uid"], **e)
+        
+    for i, a in enumerate(sorted_events):
+        ta = parse_dt(get_time(a))
+        for j in range(i + 1, len(sorted_events)):
+            b = sorted_events[j]
+            tb = parse_dt(get_time(b))
+            lag = (tb - ta).total_seconds()
+            if lag > window_sec:
+                break
+            conf, reason = relation(a, b)
+            if conf > 0:
+                G.add_edge(a["event_uid"], b["event_uid"], confidence=conf, lag_seconds=lag, reason=reason)
+    return G
+
+
+def extract_causal_sequences(G):
+    sequences = []
+    root_nodes = [n for n in G.nodes() if G.in_degree(n) == 0 and G.out_degree(n) > 0]
+    leaf_nodes = [n for n in G.nodes() if G.out_degree(n) == 0 and G.in_degree(n) > 0]
+    
+    for root in root_nodes:
+        best_path = []
+        for leaf in leaf_nodes:
+            try:
+                for path in nx.all_simple_paths(G, root, leaf, cutoff=10):
+                    if len(path) > len(best_path):
+                        best_path = path
+            except nx.NetworkXNoPath:
+                continue
+                
+        if len(best_path) >= 2:
+            sequence = []
+            for step_idx, node_id in enumerate(best_path):
+                node_data = G.nodes[node_id]
+                role = "root_cause" if step_idx == 0 else ("terminal_effect" if step_idx == len(best_path) - 1 else "propagation")
+                edge_data = {}
+                if step_idx > 0:
+                    edge_data = G.edges[best_path[step_idx-1], node_id]
+                
+                sequence.append({
+                    "step": step_idx + 1,
+                    "event_uid": node_id,
+                    "role": role,
+                    "device": node_data.get("device"),
+                    "subtype": node_data.get("normalized_subtype"),
+                    "severity": node_data.get("severity"),
+                    "message": node_data.get("message"),
+                    "timestamp": str(node_data.get("corrected_time") or node_data.get("event_time")),
+                    "confidence_from_previous": edge_data.get("confidence"),
+                    "lag_from_previous": edge_data.get("lag_seconds"),
+                    "reason": edge_data.get("reason"),
+                })
+                
+            sequences.append({
+                "sequence_id": f"SEQ-{len(sequences)+1:03d}",
+                "root_event": best_path[0],
+                "terminal_event": best_path[-1],
+                "length": len(best_path),
+                "total_confidence": round(sum(G.edges[best_path[i], best_path[i+1]].get("confidence", 0) for i in range(len(best_path)-1)) / (len(best_path) - 1), 3),
+                "steps": sequence,
+            })
+            
+    sequences.sort(key=lambda s: (s["length"], s["total_confidence"]), reverse=True)
+    return sequences
 
 
 def analyze_incident(inc: Dict) -> Dict:
@@ -163,23 +277,23 @@ def analyze_incident(inc: Dict) -> Dict:
         root = max(normalized, key=lambda e: e["root_score"], default=None)
         classification = "informational"
 
+    G = build_causal_graph(normalized)
+    sequences = extract_causal_sequences(G)
+    
     links = []
-    linked_uids = set()
-    for i, a in enumerate(normalized):
-        for b in normalized[i + 1:]:
-            conf, reason = relation(a, b)
-            if conf:
-                links.append({
-                    "source_event_uid": a.get("event_uid"),
-                    "target_event_uid": b.get("event_uid"),
-                    "source_subtype": subtype(a),
-                    "target_subtype": subtype(b),
-                    "lag_seconds": (parse_dt(get_time(b)) - parse_dt(get_time(a))).total_seconds(),
-                    "confidence": conf,
-                    "reason": reason,
-                })
-                linked_uids.add(a.get("event_uid")); linked_uids.add(b.get("event_uid"))
-    links = sorted(links, key=lambda x: x["confidence"], reverse=True)[:10]
+    for u, v, d in G.edges(data=True):
+        links.append({
+            "source_event_uid": u,
+            "target_event_uid": v,
+            "source_subtype": G.nodes[u].get("normalized_subtype"),
+            "target_subtype": G.nodes[v].get("normalized_subtype"),
+            "lag_seconds": d.get("lag_seconds"),
+            "confidence": d.get("confidence"),
+            "reason": d.get("reason"),
+        })
+    links.sort(key=lambda x: x["confidence"], reverse=True)
+    
+    linked_uids = set(G.nodes()) - set(n for n in G.nodes() if G.degree(n) == 0)
     unrelated = [e.get("event_uid") for e in normalized if e.get("event_uid") not in linked_uids and (not root or e.get("event_uid") != root.get("event_uid"))]
 
     return {
@@ -189,8 +303,9 @@ def analyze_incident(inc: Dict) -> Dict:
         "event_count": len(normalized),
         "root_cause": root,
         "causal_links": links,
+        "causal_sequences": sequences,
         "possibly_unrelated_events": unrelated,
-        "source": "deterministic-production-rules",
+        "source": "dag-production-rules",
     }
 
 
@@ -226,9 +341,21 @@ def print_report(results):
         print(f"  Severity  : {root.get('severity')}")
         print(f"  Score     : {root.get('root_score')}")
         print(f"  Message   : {root.get('message')}")
+        
+        seqs = r.get("causal_sequences", [])
+        if seqs:
+            print("\nCausal Sequences Found")
+            for seq in seqs:
+                print(f"  Sequence {seq['sequence_id']} (length {seq['length']}, conf {seq['total_confidence']})")
+                for step in seq["steps"]:
+                    print(f"    [{step['step']}] {step['role']}: {step['device']} - {step['subtype']} ({step['severity']})")
+        
         print("\nCausal Links")
-        for l in r.get("causal_links", []):
+        for l in r.get("causal_links", [])[:5]:
             print(f"  {l['source_subtype']} -> {l['target_subtype']} [lag={l['lag_seconds']}s, conf={l['confidence']}] {l['reason']}")
+        if len(r.get("causal_links", [])) > 5:
+            print(f"  ... and {len(r.get('causal_links')) - 5} more links")
+            
         print(f"\nPossibly unrelated events: {r.get('possibly_unrelated_events')}")
 
 

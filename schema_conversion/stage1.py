@@ -41,12 +41,15 @@ class FewShotLLMLogExtractor:
 
     def __init__(
         self,
-        model="qwen2.5:14b",
-        ollama_url="http://localhost:11434/api/generate"
+        model=None,
+        ollama_url=None
     ):
-
-        self.model = model
-        self.ollama_url = ollama_url
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        self.model = model or os.getenv("OLLAMA_MODEL", "qwen2.5:14b")
+        self.ollama_url = ollama_url or os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 
         # =====================================================
         # TIMESTAMP PATTERNS
@@ -329,7 +332,7 @@ NOW PROCESS THIS LOG:
         response = requests.post(
             self.ollama_url,
             json=payload,
-            timeout=120
+            timeout=1800
         )
 
         response.raise_for_status()

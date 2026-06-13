@@ -82,8 +82,8 @@ with tab1:
         col2.metric("🔔 Total Events", len(normalized_events))
     
     if causal_output:
-        col3.metric("🔗 Causal Links", causal_output.get("num_causal_links", 0))
-        col4.metric("🚀 Incident Flows", causal_output.get("num_flows", 0))
+        col3.metric("🔗 Causal Links", causal_output.get("total_causal_links", 0))
+        col4.metric("🚀 Total Incidents", causal_output.get("total_incidents", 0))
     
     st.markdown("---")
     
@@ -94,7 +94,7 @@ with tab1:
     
     # Root causes
     if causal_output and causal_output.get("root_causes"):
-        st.markdown(f"**🔥 Root Cause Events (Sample):** {', '.join(causal_output['root_causes'][:10])}")
+        st.markdown(f"**🔥 Root Cause Events (Sample):** {', '.join([rc.get('subtype', 'unknown') for rc in causal_output['root_causes'][:10]])}")
 
 
 # ============================================================
@@ -234,8 +234,8 @@ with tab4:
         
         # Summary metrics
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("🔗 Causal Links", causal_output.get('num_causal_links', 0))
-        col2.metric("🚀 Incident Flows", causal_output.get('num_flows', 0))
+        col1.metric("🔗 Causal Links", causal_output.get('total_causal_links', 0))
+        col2.metric("🚀 Total Incidents", causal_output.get('total_incidents', 0))
         col3.metric("🔥 Root Causes", len(causal_output.get('root_causes', [])))
         col4.metric("🖥️ Devices", len(causal_output.get('affected_devices', [])))
         
@@ -245,32 +245,46 @@ with tab4:
         root_causes = causal_output.get('root_causes', [])
         if root_causes:
             st.markdown("### Root Cause Events")
-            root_data = []
-            for cause in root_causes:
-                root_data.append({"Root Cause": cause})
+            root_data = [{"Incident": rc.get("incident_id"), "Device": rc.get("device"), "Subtype": rc.get("subtype"), "Score": rc.get("score")} for rc in root_causes]
             df_root = pd.DataFrame(root_data)
             st.dataframe(df_root, use_container_width=True, hide_index=True)
         
         st.markdown("---")
         
+        # Causal Sequences
+        all_sequences = []
+        for inc in causal_output.get('incidents', []):
+            for seq in inc.get('causal_sequences', []):
+                steps_str = " → ".join([s.get("subtype", "") for s in seq.get("steps", [])])
+                all_sequences.append({
+                    "Incident": inc.get("incident_id"),
+                    "Path": steps_str,
+                    "Length": seq.get("length"),
+                    "Confidence": f"{seq.get('total_confidence', 0):.2f}"
+                })
+        if all_sequences:
+            st.markdown(f"### Causal Sequences ({len(all_sequences)} total)")
+            df_seq = pd.DataFrame(all_sequences)
+            st.dataframe(df_seq, use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+
         # Causal Links Table
-        links = causal_output.get('causal_links', [])
+        links = []
+        for inc in causal_output.get('incidents', []):
+            for l in inc.get('causal_links', []):
+                links.append({
+                    "Incident": inc.get("incident_id"),
+                    "Source Event": l.get('source_subtype', 'N/A'),
+                    "Target Event": l.get('target_subtype', 'N/A'),
+                    "Time Lag (s)": l.get('lag_seconds', 0),
+                    "Confidence": f"{l.get('confidence', 0):.3f}",
+                    "Reason": l.get('reason', 'N/A')
+                })
+
         if links:
             st.markdown(f"### Causal Links ({len(links)} total)")
-            
-            links_data = []
-            for link in links:
-                links_data.append({
-                    "Cause Event": link.get('cause_subtype', 'N/A'),
-                    "Cause Device": link.get('cause_device', 'N/A'),
-                    "Effect Event": link.get('effect_subtype', 'N/A'),
-                    "Effect Device": link.get('effect_device', 'N/A'),
-                    "Time Lag (s)": link.get('lag_sec', 0),
-                    "Confidence": f"{link.get('confidence', 0):.3f}",
-                    "Type": link.get('link_type', 'N/A')
-                })
-            
-            df_links = pd.DataFrame(links_data)
+            df_links = pd.DataFrame(links)
             st.dataframe(df_links, use_container_width=True, hide_index=True)
         
         st.markdown("---")

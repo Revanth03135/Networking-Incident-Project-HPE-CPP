@@ -1,148 +1,18 @@
 # Network Incident Investigation Report
 
-Generated: 2026-06-05T06:22:02Z
+Generated: 2026-06-13T15:36:29Z
 
 ## Executive Summary
-- Total incidents reconstructed: 66
-- Total events analyzed: 931
-- Total causal links inferred: 571
-- Affected devices: switch-1, switch-2, switch-3, switch-4
+- Total incidents reconstructed: 1
+- Total events analyzed: 20
+- Total causal links inferred: 91
+- Affected devices: unknown
 
 ## Probable Initiating Triggers
-- e2
-- e13
-- e32
-- e57
-- e73
-- e104
-- e119
-- e117
-- e149
-- e159
-- e171
-- e177
-- e188
-- e200
-- e214
-- e217
-- e244
-- e255
-- e308
-- e336
-- e358
-- e370
-- e371
-- e416
-- e431
-- e443
-- e460
-- e476
-- e479
-- e502
-- e509
-- e538
-- e544
-- e550
-- e574
-- e576
-- e598
-- e612
-- e633
-- e659
-- e668
-- e679
-- e719
-- e728
-- e740
-- e765
-- e781
-- e789
-- e799
-- e833
-- e841
-- e844
-- e853
-- e862
-- e869
-- e885
-- e900
-- e899
-- e908
-- e914
-- e948
-- e953
-- e964
-- e978
-- e982
-- e992
+- Incident INC-0001 -> config_change (device=unknown, score=93.6)
 
 ## Incident Overview
-- INC-0001: events=13, duration=11.0s, primary_issue=unknown
-- INC-0002: events=7, duration=4.0s, primary_issue=unknown
-- INC-0003: events=31, duration=30.0s, primary_issue=unknown
-- INC-0004: events=17, duration=14.0s, primary_issue=unknown
-- INC-0005: events=19, duration=17.0s, primary_issue=unknown
-- INC-0006: events=22, duration=22.0s, primary_issue=unknown
-- INC-0007: events=1, duration=0.0s, primary_issue=unknown
-- INC-0008: events=17, duration=16.0s, primary_issue=unknown
-- INC-0009: events=15, duration=13.0s, primary_issue=unknown
-- INC-0010: events=12, duration=9.0s, primary_issue=unknown
-- INC-0011: events=12, duration=8.0s, primary_issue=unknown
-- INC-0012: events=10, duration=5.0s, primary_issue=unknown
-- INC-0013: events=6, duration=4.0s, primary_issue=unknown
-- INC-0014: events=21, duration=15.0s, primary_issue=unknown
-- INC-0015: events=5, duration=3.0s, primary_issue=unknown
-- INC-0016: events=20, duration=21.0s, primary_issue=unknown
-- INC-0017: events=11, duration=10.0s, primary_issue=unknown
-- INC-0018: events=37, duration=34.0s, primary_issue=unknown
-- INC-0019: events=39, duration=41.0s, primary_issue=unknown
-- INC-0020: events=19, duration=16.0s, primary_issue=unknown
-- INC-0021: events=10, duration=6.0s, primary_issue=unknown
-- INC-0022: events=4, duration=1.0s, primary_issue=unknown
-- INC-0023: events=24, duration=25.0s, primary_issue=unknown
-- INC-0024: events=29, duration=28.0s, primary_issue=unknown
-- INC-0025: events=13, duration=9.0s, primary_issue=unknown
-- INC-0026: events=12, duration=7.0s, primary_issue=unknown
-- INC-0027: events=21, duration=17.0s, primary_issue=unknown
-- INC-0028: events=3, duration=0.0s, primary_issue=unknown
-- INC-0029: events=9, duration=6.0s, primary_issue=unknown
-- INC-0030: events=18, duration=17.0s, primary_issue=unknown
-- INC-0031: events=23, duration=21.0s, primary_issue=unknown
-- INC-0032: events=10, duration=6.0s, primary_issue=unknown
-- INC-0033: events=6, duration=2.0s, primary_issue=unknown
-- INC-0034: events=25, duration=22.0s, primary_issue=unknown
-- INC-0035: events=2, duration=1.0s, primary_issue=unknown
-- INC-0036: events=12, duration=9.0s, primary_issue=unknown
-- INC-0037: events=18, duration=17.0s, primary_issue=unknown
-- INC-0038: events=19, duration=19.0s, primary_issue=unknown
-- INC-0039: events=8, duration=4.0s, primary_issue=unknown
-- INC-0040: events=22, duration=20.0s, primary_issue=unknown
-- INC-0041: events=14, duration=10.0s, primary_issue=unknown
-- INC-0042: events=18, duration=18.0s, primary_issue=unknown
-- INC-0043: events=22, duration=21.0s, primary_issue=unknown
-- INC-0044: events=11, duration=6.0s, primary_issue=unknown
-- INC-0045: events=21, duration=20.0s, primary_issue=unknown
-- INC-0046: events=20, duration=17.0s, primary_issue=unknown
-- INC-0047: events=8, duration=5.0s, primary_issue=unknown
-- INC-0048: events=8, duration=5.0s, primary_issue=unknown
-- INC-0049: events=4, duration=2.0s, primary_issue=unknown
-- INC-0050: events=34, duration=33.0s, primary_issue=unknown
-- INC-0051: events=3, duration=0.0s, primary_issue=unknown
-- INC-0052: events=2, duration=0.0s, primary_issue=unknown
-- INC-0053: events=14, duration=10.0s, primary_issue=unknown
-- INC-0054: events=8, duration=7.0s, primary_issue=unknown
-- INC-0055: events=6, duration=4.0s, primary_issue=unknown
-- INC-0056: events=21, duration=18.0s, primary_issue=unknown
-- INC-0057: events=2, duration=1.0s, primary_issue=unknown
-- INC-0058: events=5, duration=2.0s, primary_issue=unknown
-- INC-0059: events=10, duration=6.0s, primary_issue=unknown
-- INC-0060: events=22, duration=23.0s, primary_issue=unknown
-- INC-0061: events=11, duration=7.0s, primary_issue=unknown
-- INC-0062: events=9, duration=6.0s, primary_issue=unknown
-- INC-0063: events=14, duration=12.0s, primary_issue=unknown
-- INC-0064: events=2, duration=2.0s, primary_issue=unknown
-- INC-0065: events=12, duration=7.0s, primary_issue=unknown
-- INC-0066: events=8, duration=3.0s, primary_issue=unknown
+- INC-0001: events=20, duration=1.0s, primary_issue=unknown
 
 ## Confidence and Limitations
 - Causality is inferred from temporal and contextual heuristics, not strict proof.

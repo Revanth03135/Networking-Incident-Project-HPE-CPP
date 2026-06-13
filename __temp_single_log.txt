@@ -1,0 +1,1 @@
+May 14 14:02:11 192.168.1.104 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed

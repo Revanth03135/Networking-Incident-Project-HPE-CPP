@@ -143,12 +143,12 @@ def compute_event_graph_metrics(
             link.get("confidence", 0)
         )
 
-        if link.get("cause_id") == event_id:
+        if link.get("source_event_uid") == event_id:
 
             outgoing += 1
             confidence_sum += conf
 
-        if link.get("effect_id") == event_id:
+        if link.get("target_event_uid") == event_id:
 
             incoming += 1
 

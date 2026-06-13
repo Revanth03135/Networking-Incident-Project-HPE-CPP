@@ -49,53 +49,159 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
 
         if not records:
             # Schema conversion produced no records (likely LLM endpoint unavailable).
-            # Provide a simple, regex-free fallback that converts each non-empty
-            # line/paragraph in the input text into a minimal event record so the
-            # rest of the CRT pipeline can run offline.
+            # Smart fallback: split each syslog line into a separate event with
+            # extracted hostname, severity, and subtype from the log header.
             print("[WARN] Schema conversion produced 0 records — using fallback extractor")
             fallback = []
             try:
-                # Attempt to use dateutil for fuzzy timestamp parsing if available
+                import re as _re
+
                 try:
                     from dateutil import parser as date_parser  # type: ignore
                 except Exception:
                     date_parser = None
 
                 text = input_path.read_text(encoding="utf-8")
-                # Split on blank lines to preserve multi-line log entries, fallback to lines
-                chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
-                if not chunks:
-                    chunks = [l.strip() for l in text.splitlines() if l.strip()]
+                lines = [l.strip() for l in text.splitlines() if l.strip()]
+
+                # Detect if lines are individual syslog entries (most start with timestamps)
+                _ts_pat = _re.compile(r'^(\d{4}-\d{2}-\d{2}|[A-Z][a-z]{2}\s+\d+\s+\d{2}:)')
+                ts_count = sum(1 for l in lines if _ts_pat.match(l))
+
+                if ts_count >= len(lines) * 0.4:
+                    chunks = lines  # Each line is a separate event (syslog format)
+                else:
+                    # Multi-line log entries — split on blank lines
+                    chunks = [c.strip() for c in text.split("\n\n") if c.strip()]
+                    if not chunks:
+                        chunks = lines
 
                 now_iso = datetime.now(timezone.utc).isoformat()
 
+                # Syslog header patterns for field extraction
+                _syslog_host = _re.compile(
+                    r'^(?:[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+'
+                    r'(\S+)'
+                )
+                _severity_bracket = _re.compile(r'\[([a-zA-Z0-9_.-]+)\.([a-zA-Z]+)\]')
+                _SEVERITY_MAP = {
+                    "emerg": "critical", "emergency": "critical", "alert": "critical",
+                    "crit": "critical", "critical": "critical",
+                    "err": "error", "error": "error",
+                    "warn": "warning", "warning": "warning",
+                    "notice": "info", "info": "info", "debug": "info",
+                }
+                # Quick subtype detection from message content
+                _SUBTYPE_RULES = [
+                    ("power", ["power supply", "psu"]),
+                    ("fan", ["fan tray", "fan speed"]),
+                    ("crc_errors", ["crc error", "excessive crc"]),
+                    ("interface_down", ["off-line", "offline", "link down", "is down"]),
+                    ("interface_up", ["on-line", "online", "link up"]),
+                    ("stp_topology_change", ["topology change", "mstp", "forwarding", "learning"]),
+                    ("ospf", ["ospf"]),
+                    ("bgp", ["bgp"]),
+                    ("dot1x_failure", ["802.1x", "authentication failed"]),
+                    ("mac_auth", ["mac-auth"]),
+                    ("ssh_bruteforce", ["ssh login failed", "maximum attempts"]),
+                    ("admin_auth_failure", ["authentication failure for user"]),
+                    ("config_change", ["configuration changed"]),
+                    ("lldp", ["lldp"]),
+                    ("vlan", ["vlan"]),
+                    ("transceiver", ["transceiver"]),
+                    ("ntp", ["ntp"]),
+                    ("snmp", ["snmpd", "snmp"]),
+                ]
+
                 for i, chunk in enumerate(chunks):
-                    # Try to extract a timestamp from the chunk
+                    # --- Extract timestamp ---
                     event_time = None
-                    if date_parser:
-                        try:
-                            parsed = date_parser.parse(chunk, fuzzy=True)
-                            # ensure timezone-aware ISO format
-                            if parsed.tzinfo is None:
-                                parsed = parsed.replace(tzinfo=timezone.utc)
-                            event_time = parsed.isoformat()
-                        except Exception:
-                            event_time = None
+                    try:
+                        from datetime import datetime, timezone
+                        ts_str = chunk[:15]
+                        current_year = datetime.now(timezone.utc).year
+                        parsed = datetime.strptime(f"{current_year} {ts_str}", "%Y %b %d %H:%M:%S")
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                        event_time = parsed.isoformat()
+                    except Exception as e:
+                        pass
 
                     if not event_time:
                         event_time = now_iso
+
+                    # --- Extract hostname/IP ---
+                    hostname = "unknown"
+                    m = _syslog_host.match(chunk)
+                    if m:
+                        hostname = m.group(1)
+
+                    # --- Extract severity from [facility.severity] ---
+                    severity = "info"
+                    m_sev = _severity_bracket.search(chunk)
+                    if m_sev:
+                        severity = _SEVERITY_MAP.get(m_sev.group(2).lower(), m_sev.group(2).lower())
+
+                    # --- Detect subtype from content ---
+                    chunk_lower = chunk.lower()
+                    detected_subtype = "raw"
+                    detected_type = "log"
+                    for st, keywords in _SUBTYPE_RULES:
+                        if any(kw in chunk_lower for kw in keywords):
+                            detected_subtype = st
+                            # Map to high-level type
+                            if st in ("power", "fan"):
+                                detected_type = "hardware"
+                            elif st in ("crc_errors", "interface_down", "interface_up", "transceiver"):
+                                detected_type = "physical_link"
+                            elif st in ("stp_topology_change",):
+                                detected_type = "topology"
+                            elif st in ("ospf", "bgp"):
+                                detected_type = "routing"
+                            elif st in ("dot1x_failure", "mac_auth"):
+                                detected_type = "access_control"
+                            elif st in ("ssh_bruteforce", "admin_auth_failure"):
+                                detected_type = "security"
+                            elif st in ("config_change",):
+                                detected_type = "configuration"
+                            elif st in ("lldp", "vlan"):
+                                detected_type = "inventory"
+                            elif st in ("ntp", "snmp"):
+                                detected_type = "service"
+                            break
+
+                    # --- Extract interface/port ---
+                    interface_id = None
+                    m_port = _re.search(r'[Pp]ort\s+(\d+/\d+/\d+|\d+/\d+|\d+)', chunk)
+                    if m_port:
+                        interface_id = m_port.group(1)
+
+                    # --- Extract core message (strip syslog header) ---
+                    core_msg = chunk
+                    # Try to strip "May 14 14:02:11 hostname process[pid]: [fac.sev] " prefix
+                    m_core = _re.match(
+                        r'^(?:[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+\S+\s+'
+                        r'(?:\S+(?:\[\d+\])?:\s*)?(?:\[[^\]]*\]\s*)?(.+)$',
+                        chunk
+                    )
+                    if m_core:
+                        core_msg = m_core.group(1).strip()
 
                     raw_event = {
                         "event": {
                             "event_uid": f"fallback-{i+1}",
                             "event_id": f"fallback-{i+1}",
-                            "type": "log",
-                            "subtype": "raw",
-                            "severity": "info",
-                            "message": chunk,
+                            "type": detected_type,
+                            "subtype": detected_subtype,
+                            "severity": severity,
+                            "message": core_msg,
                         },
-                        "device": {"hostname": "unknown"},
-                        "network": {},
+                        "device": {
+                            "hostname": hostname,
+                            "ip": hostname if _re.match(r'\d+\.\d+\.\d+\.\d+', hostname) else None,
+                        },
+                        "network": {
+                            "interface_id": interface_id,
+                        },
                         "timestamps": {"event_time": event_time, "ingestion_time": now_iso},
                         "raw": {"message": chunk},
                     }

@@ -362,7 +362,7 @@ class LogProcessor:
                 "--single-log"
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
             
             if result.returncode != 0:
                 return {"error": f"Stage1 failed: {result.stderr}"}
@@ -421,7 +421,7 @@ class LogProcessor:
                 "--single-log"
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
             
             if result.returncode != 0:
                 print(f"[FAIL] Template generation failed: {result.stderr}")
@@ -478,7 +478,7 @@ class LogProcessor:
                 "--single-log"
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
             
             if result.returncode != 0:
                 return {"error": f"Stage2 failed: {result.stderr}"}

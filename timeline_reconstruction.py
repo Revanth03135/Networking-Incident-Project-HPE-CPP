@@ -17,6 +17,7 @@ import re
 import sys
 from datetime import datetime
 from typing import Dict, List, Tuple, Any, Optional
+from collections import defaultdict
 
 from preprocessing import (
     load_data,
@@ -157,6 +158,128 @@ def cluster_events(events: List[Dict[str, Any]], base_window_sec: float) -> List
     return clusters
 
 
+class UnionFind:
+    def __init__(self, size: int):
+        self.parent = list(range(size))
+        self.sz = [1] * size
+
+    def find(self, p: int) -> int:
+        while p != self.parent[p]:
+            self.parent[p] = self.parent[self.parent[p]]
+            p = self.parent[p]
+        return p
+
+    def union(self, p: int, q: int) -> None:
+        root_p = self.find(p)
+        root_q = self.find(q)
+        if root_p == root_q:
+            return
+        if self.sz[root_p] < self.sz[root_q]:
+            self.parent[root_p] = root_q
+            self.sz[root_q] += self.sz[root_p]
+        else:
+            self.parent[root_q] = root_p
+            self.sz[root_p] += self.sz[root_q]
+
+    def size(self, p: int) -> int:
+        return self.sz[self.find(p)]
+
+
+def compute_cross_device_score(cluster_a: List[Dict], cluster_b: List[Dict], ip_to_clusters: Dict) -> float:
+    score = 0.0
+
+    domains_a = {e.get("incident_domain") for e in cluster_a}
+    domains_b = {e.get("incident_domain") for e in cluster_b}
+    vlans_a = {str(e.get("vlan")) for e in cluster_a if e.get("vlan")}
+    vlans_b = {str(e.get("vlan")) for e in cluster_b if e.get("vlan")}
+
+    domain_ok = False
+    for da in domains_a:
+        if da in COMPATIBLE_DOMAINS:
+            if domains_b.intersection(COMPATIBLE_DOMAINS[da]):
+                domain_ok = True
+                break
+    if domain_ok:
+        score += 0.2
+
+    if vlans_a and vlans_b and vlans_a.intersection(vlans_b):
+        score += 0.15
+
+    start_a = min(event_time(e) for e in cluster_a)
+    end_a = max(event_time(e) for e in cluster_a)
+    start_b = min(event_time(e) for e in cluster_b)
+    end_b = max(event_time(e) for e in cluster_b)
+
+    gap = 0.0
+    if end_a < start_b:
+        gap = (start_b - end_a).total_seconds()
+    elif end_b < start_a:
+        gap = (start_a - end_b).total_seconds()
+
+    if gap <= 300:
+        score += 0.2
+
+    ips_a = set()
+    for e in cluster_a:
+        ips_a.update(re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text_of(e)))
+    dev_ip_a = cluster_a[0].get("device_ip")
+    if dev_ip_a and dev_ip_a != "unknown":
+        ips_a.add(dev_ip_a)
+
+    ips_b = set()
+    for e in cluster_b:
+        ips_b.update(re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text_of(e)))
+    dev_ip_b = cluster_b[0].get("device_ip")
+    if dev_ip_b and dev_ip_b != "unknown":
+        ips_b.add(dev_ip_b)
+
+    if ips_a.intersection(ips_b):
+        score += 0.4
+
+    max_sev_a = max(severity_rank(e) for e in cluster_a)
+    max_sev_b = max(severity_rank(e) for e in cluster_b)
+    if start_b >= start_a and max_sev_b > max_sev_a:
+        score += 0.15
+    elif start_a >= start_b and max_sev_a > max_sev_b:
+        score += 0.15
+
+    return score
+
+
+def correlate_cross_device(clusters: List[List[Dict[str, Any]]], merge_threshold: float = 0.5, max_events: int = 50) -> List[List[Dict[str, Any]]]:
+    if not clusters:
+        return []
+
+    ip_to_clusters = defaultdict(set)
+    for idx, cluster in enumerate(clusters):
+        for event in cluster:
+            ips = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text_of(event))
+            for ip in ips:
+                ip_to_clusters[ip].add(idx)
+
+    merged = UnionFind(len(clusters))
+
+    for i in range(len(clusters)):
+        for j in range(i + 1, len(clusters)):
+            if clusters[i][0].get("device") == clusters[j][0].get("device"):
+                continue
+
+            score = compute_cross_device_score(clusters[i], clusters[j], ip_to_clusters)
+            if score >= merge_threshold:
+                combined = merged.size(i) + merged.size(j)
+                if combined <= max_events:
+                    merged.union(i, j)
+
+    groups = defaultdict(list)
+    for idx in range(len(clusters)):
+        groups[merged.find(idx)].extend(clusters[idx])
+
+    final_clusters = [sorted(events, key=event_time) for events in groups.values()]
+    print(f"[CORRELATE]  ✔ {len(clusters)} device clusters merged into {len(final_clusters)} cross-device incidents")
+    return final_clusters
+
+
+
 def deduplicate_cluster(cluster: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     seen: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
     for e in cluster:
@@ -245,6 +368,7 @@ def run_pipeline(input_path: str, output_path: str = "timeline_output.json"):
 
     window = compute_dynamic_window(norm)
     clusters = cluster_events(norm, window)
+    clusters = correlate_cross_device(clusters)
 
     print("\n[BUILD]      Building production incidents...")
     incidents = build_incidents(clusters)

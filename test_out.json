@@ -1,0 +1,11 @@
+[
+  {
+    "timestamp": "2026-04-03T09:58:05+00:00",
+    "hostname": "MONITOR-NODE-01",
+    "ip": null,
+    "vendor": "Linux",
+    "os": "Linux",
+    "core_message": "CPU utilization exceeded 85% for 120 seconds",
+    "raw_log": "2026-04-03T09:58:05Z MONITOR-NODE-01 Linux kernel: CPU utilization exceeded 85% for 120 seconds"
+  }
+]

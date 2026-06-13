@@ -284,33 +284,7 @@ def run_preprocessing_pipeline(
 
     # Step 3: Normalize timestamps
     print("[TIMESTAMPS] Normalizing...")
-    valid_events = []
-    dropped = []
-    for e in events:
-        try:
-            # Parse event_time (required)
-            e["event_time"] = datetime.fromisoformat(
-                e.get("event_time", "").replace("Z", "+00:00")
-            ).replace(microsecond=0)
-
-            # ingestion_time is optional; fall back to event_time when absent or unparsable
-            ing = e.get("ingestion_time")
-            if ing:
-                try:
-                    e["ingestion_time"] = datetime.fromisoformat(
-                        ing.replace("Z", "+00:00")
-                    ).replace(microsecond=0)
-                except Exception:
-                    e["ingestion_time"] = e["event_time"]
-            else:
-                e["ingestion_time"] = e["event_time"]
-
-            valid_events.append(e)
-        except Exception as err:
-            e["_parse_error"] = str(err)
-            dropped.append(e)
-
-    print(f"[TIMESTAMPS] ✔ {len(valid_events)} valid | ✗ {len(dropped)} dropped")
+    valid_events, dropped = normalize_timestamps(events)
 
     # Step 4: Clock skew correction
     print("[SKEW]       Correcting clock skew...")
