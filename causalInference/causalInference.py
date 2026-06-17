@@ -15,31 +15,85 @@ from typing import Any, Dict, List, Optional, Tuple
 import networkx as nx
 
 SEV = {"debug": 0, "info": 1, "notice": 1, "warning": 2, "warn": 2, "error": 3, "err": 3, "critical": 4, "crit": 4}
-BENIGN = {"snmp", "ntp", "vlan", "lldp", "transceiver", "interface_up", "mac_auth_success", "dot1x_logout", "bgp"}
-ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change"}
+BENIGN = {"snmp", "ntp", "vlan", "lldp", "transceiver", "interface_up", "mac_auth_success", "dot1x_logout",
+          "vtep_operational", "tunnel_operational", "vni_create", "vxlan_interface", "tunnel_nexthop_add"}
+ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change", "tunnel_nexthop_delete"}
 
+# BASE scores reflect the causal weight of each event type.
+# Hardware/Physical failures score highest. VXLAN/tunnel events are Layer 2/3 overlay.
 BASE = {
-    "power": 100, "fan": 55, "crc_errors": 90, "interface_down": 88,
-    "ospf": 80, "bgp": 55, "stp_topology_change": 65,
-    "config_change": 75, "ssh_bruteforce": 78, "admin_auth_failure": 70,
-    "dot1x_failure": 72, "interface_up": 10, "snmp": 5, "ntp": 3,
-    "vlan": 8, "lldp": 8, "transceiver": 15, "mac_auth_success": 5,
-    "dot1x_logout": 5,
+    # --- Layer 0: Hardware ---
+    "power": 130, "fan": 110,
+    # --- Layer 1: Physical Link ---
+    "crc_errors": 120, "interface_down": 115, "transceiver": 70,
+    # --- Layer 2: Switching / Topology / VXLAN Overlay ---
+    "stp_topology_change": 85, "vlan": 20, "lldp": 18,
+    "mac_auth_success": 5, "dot1x_failure": 30, "dot1x_logout": 5,
+    "vni_create": 25, "vxlan_interface": 30,
+    "vtep_operational": 10, "vtep_down": 90,
+    # --- Layer 3: Routing / Tunnel Underlay ---
+    "ospf": 95, "bgp": 80,
+    "tunnel_nexthop_delete": 95,  # nexthop withdraw = routing change, high-weight root cause
+    "tunnel_nexthop_add": 10,     # nexthop add = recovery, low root-cause weight
+    "tunnel_activating": 40,
+    "tunnel_operational": 8,      # tunnel up = recovery indicator
+    # --- Configuration ---
+    "config_change": 60,
+    # --- Security ---
+    "ssh_bruteforce": 25, "admin_auth_failure": 20,
+    # --- Informational / noise ---
+    "interface_up": 5, "snmp": 3, "ntp": 3,
 }
 
+# LAYER maps each subtype to its OSI-ish tier.
 LAYER = {
     "power": 0, "fan": 0,
     "crc_errors": 1, "interface_down": 1,
     "interface_up": 1, "transceiver": 1,
     "stp_topology_change": 2, "vlan": 2, "lldp": 2,
     "mac_auth_success": 2, "dot1x_failure": 2,
-    "ospf": 3, "bgp": 3,
-    "config_change": 3,
+    "vni_create": 2, "vxlan_interface": 2, "vtep_operational": 2, "vtep_down": 2,
+    "ospf": 3, "bgp": 3, "config_change": 3,
+    "tunnel_nexthop_delete": 3, "tunnel_nexthop_add": 3,
+    "tunnel_activating": 3, "tunnel_operational": 3,
     "ssh_bruteforce": 4, "admin_auth_failure": 4,
 }
 
-RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan", "power", "ntp"}
-RECOVERY_KEYWORDS = {"established", "up", "on-line", "online", "restored", "synchronized", "forwarding"}
+# Network domain classification (5-tier + VXLAN overlay):
+DOMAIN_TIER = {
+    "power": "Layer 0 - Hardware",
+    "fan": "Layer 0 - Hardware",
+    "crc_errors": "Layer 1 - Physical",
+    "interface_down": "Layer 1 - Physical",
+    "interface_up": "Layer 1 - Physical",
+    "transceiver": "Layer 1 - Physical",
+    "stp_topology_change": "Layer 2 - Switching",
+    "vlan": "Layer 2 - Switching",
+    "lldp": "Layer 2 - Switching",
+    "mac_auth_success": "Layer 2 - Switching",
+    "dot1x_failure": "Layer 2 - Switching",
+    "dot1x_logout": "Layer 2 - Switching",
+    "vni_create": "Layer 2 - VXLAN Overlay",
+    "vxlan_interface": "Layer 2 - VXLAN Overlay",
+    "vtep_operational": "Layer 2 - VXLAN Overlay",
+    "vtep_down": "Layer 2 - VXLAN Overlay",
+    "ospf": "Layer 3 - Routing",
+    "bgp": "Layer 3 - Routing",
+    "config_change": "Layer 3 - Routing",
+    "tunnel_nexthop_delete": "Layer 3 - VXLAN Underlay",
+    "tunnel_nexthop_add": "Layer 3 - VXLAN Underlay",
+    "tunnel_activating": "Layer 3 - VXLAN Underlay",
+    "tunnel_operational": "Layer 3 - VXLAN Underlay",
+    "ssh_bruteforce": "Layer 4 - Security",
+    "admin_auth_failure": "Layer 4 - Security",
+    "snmp": "Layer 4 - Management",
+    "ntp": "Layer 4 - Management",
+}
+
+RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan", "power", "ntp",
+                   "tunnel_operational", "vtep_operational", "tunnel_nexthop_add"}
+RECOVERY_KEYWORDS = {"established", "up", "on-line", "online", "restored", "synchronized",
+                     "forwarding", "operational", "activating"}
 
 
 def n(v) -> str:
@@ -61,6 +115,7 @@ def text(e):
 
 def subtype(e):
     s = text(e)
+    # --- Standard syslog events ---
     if "snmpd" in s: return "snmp"
     if "ntp" in s: return "ntp"
     if "power supply" in s or "psu" in s: return "power"
@@ -79,21 +134,29 @@ def subtype(e):
     if "mac-auth" in s: return "mac_auth_success"
     if "transceiver" in s: return "transceiver"
     if "lldp" in s: return "lldp"
-    if "vlan" in s: return "vlan"
-    return n(e.get("subtype")) or "unknown"
+    if "vlan" in s and "vxlan" not in s and "vni" not in s: return "vlan"
+    # --- HPE 9300 / VXLAN / EVPN events ---
+    if "nexthop delete" in s: return "tunnel_nexthop_delete"
+    if "nexthop add" in s: return "tunnel_nexthop_add"
+    if "forwarding_state is activating" in s or "tunnel_activating" in s: return "tunnel_activating"
+    if ("forwarding_state is operational" in s or "tunnel_operational" in s
+            or "tunnel_forwarding_state" in s): return "tunnel_operational"
+    if "vtep-peer" in s or "vtep_peer" in s:
+        if "operational" in s: return "vtep_operational"
+        return "vtep_down"
+    if "vni" in s: return "vni_create"
+    if "vxlan" in s: return "vxlan_interface"
+    # Fallback to schema-assigned subtype
+    schema_st = n(e.get("subtype"))
+    if schema_st and schema_st not in ("unknown", ""):
+        return schema_st
+    return "unknown"
 
 
 def domain(e):
+    """Return the 5-tier network domain classification for an event."""
     st = subtype(e)
-    if st in {"power", "fan"}: return "hardware"
-    if st in {"crc_errors", "interface_down", "interface_up"}: return "physical_link"
-    if st in {"ospf", "bgp"}: return "routing"
-    if st == "stp_topology_change": return "topology"
-    if st == "config_change": return "configuration"
-    if st in {"ssh_bruteforce", "admin_auth_failure"}: return "security"
-    if st in {"dot1x_failure", "dot1x_logout", "mac_auth_success"}: return "access_control"
-    if st in {"snmp", "ntp"}: return "service"
-    return n(e.get("domain")) or n(e.get("type")) or "generic"
+    return DOMAIN_TIER.get(st, n(e.get("domain")) or n(e.get("type")) or "generic")
 
 
 def port(e):
@@ -111,17 +174,69 @@ def is_recovery(e):
     return False
 
 
+# Event types that should NEVER be selected as root cause because they are
+# almost always downstream effects or independent noise in network incidents.
+_SECURITY_NOISE = {"ssh_bruteforce", "admin_auth_failure", "dot1x_logout", "mac_auth_success"}
+# Hardware/physical events that should be strongly boosted as root cause candidates.
+_INFRA_CRITICAL = {"power", "fan", "crc_errors", "interface_down", "transceiver"}
+_ROUTING_CRITICAL = {"ospf", "bgp"}
+
+
 def root_score(e, idx, total):
+    """Compute a root-cause score for an event.
+
+    Higher score = more likely to be the initiating root cause.
+
+    Design principles
+    -----------------
+    * Hardware failures (PSU, fan) and physical-link failures (CRC, interface
+      down) get the highest possible base scores because they physically cause
+      downstream network effects.
+    * Routing convergence failures (OSPF/BGP) score high as they represent
+      control-plane impact that correlates with infrastructure disruption.
+    * Security/auth events (SSH brute-force, admin login failures) score VERY
+      LOW — they are rarely the initiator of infrastructure outages and are
+      typically either independent noise or a consequence of service disruption.
+    * Events earlier in the timeline get a small recency bonus because root
+      causes tend to appear before symptoms.
+    """
     st = subtype(e)
     sev = SEV.get(n(e.get("severity")), 1)
     s = text(e)
-    score = BASE.get(st, 20) + sev * 18
-    if "failure" in s or "failed" in s: score += 20
-    if "down" in s or "off-line" in s or "offline" in s: score += 18
-    if "crc" in s or "error" in s: score += 18
+
+    # --- Base score from type priority ---
+    score = BASE.get(st, 20)
+
+    # --- Severity multiplier (smaller than before to avoid inflating security events) ---
+    score += sev * 8
+
+    # --- Infrastructure-specific boosts ---
+    if st in _INFRA_CRITICAL:
+        score += 40  # Strong physical/hardware evidence bonus
+    if st in _ROUTING_CRITICAL:
+        score += 25  # Control-plane failure bonus
+
+    # --- Keyword boosts (only for infra events to avoid inflating auth noise) ---
+    if st in _INFRA_CRITICAL or st in _ROUTING_CRITICAL:
+        if "failure" in s or "failed" in s: score += 15
+        if "down" in s or "off-line" in s or "offline" in s: score += 15
+        if "crc" in s or "error" in s: score += 12
+
+    # --- Penalise benign/informational events ---
     if st in BENIGN and sev <= 1: score -= 80
+
+    # --- Heavily penalise security noise events ---
+    # SSH brute-force and admin auth failures score so low they will never
+    # displace hardware/physical events as root cause.
+    if st in _SECURITY_NOISE:
+        score -= 60
+
+    # --- Penalise recovery events ---
     if is_recovery(e): score -= 60
-    score += max(0, total - idx) * 0.2
+
+    # --- Small early-in-timeline bonus (root causes appear first) ---
+    score += max(0, total - idx) * 0.3
+
     return round(score, 2)
 
 
@@ -149,17 +264,28 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
         score += 0.35; reasons.append("same port")
 
     pairs = {
+        # Standard syslog causal chains
         "power": {"fan", "interface_down", "crc_errors"},
         "crc_errors": {"interface_down", "stp_topology_change", "ospf", "bgp"},
-        "interface_down": {"stp_topology_change", "ospf", "bgp", "dot1x_failure"},
+        "interface_down": {"stp_topology_change", "ospf", "bgp", "dot1x_failure",
+                           "tunnel_nexthop_delete", "vtep_down"},
         "stp_topology_change": {"ospf", "bgp"},
         "config_change": {"interface_down", "stp_topology_change", "ospf", "bgp", "dot1x_failure"},
         "admin_auth_failure": {"ssh_bruteforce"},
         "dot1x_failure": {"dot1x_logout"},
+        # VXLAN/tunnel reconvergence chain:
+        # underlay routing change → nexthop delete → tunnel activating → nexthop add → operational → vtep up
+        "tunnel_nexthop_delete": {"tunnel_activating", "tunnel_nexthop_add"},
+        "tunnel_activating":     {"tunnel_nexthop_add", "tunnel_operational"},
+        "tunnel_nexthop_add":    {"tunnel_operational"},
+        "tunnel_operational":    {"vtep_operational"},
+        "vxlan_interface":       {"vni_create", "tunnel_nexthop_delete", "vtep_operational"},
+        "vni_create":            {"tunnel_nexthop_delete", "vtep_operational"},
+        "vtep_down":             {"tunnel_nexthop_delete", "ospf", "bgp"},
     }
     if sb in pairs.get(sa, set()):
         score += 0.45; reasons.append(f"{sa} can lead to {sb}")
-    
+
     # Cross-device correlation based on IP in messages
     txt_b = text(b)
     ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text(a))
@@ -169,9 +295,15 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
             score += 0.35; reasons.append("shared IP reference")
             break
 
+    # VXLAN: correlate events sharing the same tunnel IP (e.g. 9.9.9.9)
+    tunnel_ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text(a))
+    tunnel_ips_b = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', txt_b)
+    if set(tunnel_ips_a) & set(tunnel_ips_b):
+        score += 0.25; reasons.append("shared tunnel IP")
+
     if da == db and da in {"security", "access_control", "hardware", "physical_link", "routing"}:
         score += 0.2; reasons.append("same incident domain")
-        
+
     layer_a = LAYER.get(sa, 2)
     layer_b = LAYER.get(sb, 2)
     if layer_a < layer_b:

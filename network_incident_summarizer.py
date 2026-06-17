@@ -37,9 +37,7 @@ except Exception:
     genai = None
 
 
-# =========================================================
-# LOAD ENV
-# =========================================================
+
 
 load_dotenv()
 
@@ -54,9 +52,6 @@ if genai is not None and API_KEY:
     genai.configure(api_key=API_KEY)
 
 
-# =========================================================
-# CONFIG
-# =========================================================
 
 MODEL = "gemini-2.5-flash-lite"
 
@@ -65,12 +60,10 @@ TOP_P = 0.8
 TOP_K = 20
 MAX_OUTPUT_TOKENS = 4096
 
-MIN_CAUSAL_CONFIDENCE = 0.8
+MIN_CAUSAL_CONFIDENCE = 0.6  # Accept links >= 0.60; causalInference scores range 0.0-0.99
 
 
-# =========================================================
-# EVENT CLASSIFICATION
-# =========================================================
+
 
 TRIGGER_EVENTS = {
     "link down",
@@ -279,19 +272,20 @@ def derive_incident_severity(
 # =========================================================
 
 def derive_rca_confidence(links):
-
+    """Return a confidence label based on average link confidence (0.0–1.0 scale)."""
     if not links:
         return "Low"
 
     avg = sum(
-        l["confidence"]
+        float(l.get("confidence", 0))
         for l in links
     ) / len(links)
 
-    if avg >= 2.0:
-        return "Moderate-High"
+    # confidence values are 0.0–1.0 (e.g. 0.99, 0.85, 0.70)
+    if avg >= 0.85:
+        return "High"
 
-    if avg >= 1.2:
+    if avg >= 0.65:
         return "Moderate"
 
     return "Low"
@@ -485,34 +479,28 @@ def build_payload(
     # -------------------------------------------------
     # CAUSAL NORMALIZATION
     # -------------------------------------------------
+    # The causal output from causalInference.py has this structure:
+    # {
+    #   "total_incidents": N,
+    #   "total_causal_links": N,
+    #   "root_causes": [...],
+    #   "incidents": [
+    #     { "incident_id": "INC-0001", "causal_links": [...], "root_cause": {...}, ... }
+    #   ]
+    # }
+    # We index per-incident data by incident_id for fast lookup.
 
-    causal_links = []
-    causal_chains = []
-
+    # Build per-incident causal data index
+    causal_by_inc = {}  # incident_id -> causal incident dict
     if isinstance(causal_data, dict):
-
-        causal_links = causal_data.get(
-            "causal_links",
-            []
-        )
-
-        causal_chains = causal_data.get(
-            "chains",
-            causal_data.get(
-                "causal_chains",
-                []
-            )
-        )
-
+        for ci in causal_data.get("incidents", []):
+            iid = ci.get("incident_id")
+            if iid:
+                causal_by_inc[iid] = ci
     elif isinstance(causal_data, list):
-
-        causal_links = causal_data
-
-    else:
-
-        raise ValueError(
-            "Unsupported causal structure"
-        )
+        # Legacy flat list of links
+        for link in causal_data:
+            pass  # handled below as flat fallback
 
     # -------------------------------------------------
     # PROCESS INCIDENTS
@@ -533,9 +521,9 @@ def build_payload(
 
         cleaned_events = []
 
-        # -------------------------------------------------
-        # EVENT PROCESSING
-        # -------------------------------------------------
+        # Resolve per-incident causal data early so event processing can use it
+        causal_inc = causal_by_inc.get(incident_id, {})
+        raw_links = causal_inc.get("causal_links", [])
 
         for e in events:
 
@@ -546,7 +534,7 @@ def build_payload(
 
             metrics = compute_event_graph_metrics(
                 event_id,
-                causal_links
+                raw_links
             )
 
             role = derive_event_role(
@@ -593,65 +581,45 @@ def build_payload(
         }
 
         # -------------------------------------------------
-        # MATCH LINKS
+        # MATCH LINKS from per-incident causal data
         # -------------------------------------------------
+        # Field mapping from causalInference.py output:
+        #   source_event_uid / target_event_uid  (not cause_id/effect_id)
+        #   source_subtype / target_subtype       (not cause_subtype/effect_subtype)
+        #   lag_seconds                           (not lag_sec)
+
 
         incident_links = []
 
-        for link in causal_links:
+        for link in raw_links:
 
-            confidence = float(
-                link.get("confidence", 0)
-            )
-
+            confidence = float(link.get("confidence", 0))
+            # Accept all links with confidence >= MIN_CAUSAL_CONFIDENCE
             if confidence < MIN_CAUSAL_CONFIDENCE:
                 continue
 
-            cause_id = link.get("cause_id")
-            effect_id = link.get("effect_id")
+            cause_id = link.get("source_event_uid")
+            effect_id = link.get("target_event_uid")
 
-            if (
-                cause_id in incident_event_ids
-                and
-                effect_id in incident_event_ids
-            ):
+            incident_links.append({
+                "cause": cause_id,
+                "effect": effect_id,
+                "cause_type": link.get("source_subtype"),
+                "effect_type": link.get("target_subtype"),
+                "lag_seconds": link.get("lag_seconds"),
+                "confidence": round(confidence, 2),
+                "reason": link.get("reason", ""),
+            })
 
-                incident_links.append({
-
-                    "cause":
-                        cause_id,
-
-                    "effect":
-                        effect_id,
-
-                    "cause_type":
-                        link.get("cause_subtype"),
-
-                    "effect_type":
-                        link.get("effect_subtype"),
-
-                    "lag_seconds":
-                        link.get("lag_sec"),
-
-                    "confidence":
-                        round(confidence, 2)
-                })
-
-        # -------------------------------------------------
-        # MATCH CHAINS
-        # -------------------------------------------------
-
+        # Also pull causal_sequences as chains
         incident_chains = []
+        for seq in causal_inc.get("causal_sequences", []):
+            steps = seq.get("steps", [])
+            if len(steps) >= 2:
+                incident_chains.append([s.get("event_uid") for s in steps])
 
-        for chain in causal_chains:
-
-            if isinstance(chain, list):
-
-                if all(
-                    eid in incident_event_ids
-                    for eid in chain
-                ):
-                    incident_chains.append(chain)
+        # Pull root_cause from causal engine for this incident
+        causal_root = causal_inc.get("root_cause") or {}
 
         # -------------------------------------------------
         # SEVERITY
@@ -705,16 +673,12 @@ def build_payload(
                 incident_id,
 
             "incident_window": {
-
-                "start":
-                    inc.get("start_time"),
-
-                "end":
-                    inc.get("end_time"),
-
-                "duration_seconds":
-                    inc.get("duration_sec")
+                "start": inc.get("start_time"),
+                "end": inc.get("end_time"),
+                "duration_seconds": inc.get("duration_sec")
             },
+
+            "total_events": len(events),
 
             "devices":
                 inc.get("devices", []),
@@ -726,9 +690,19 @@ def build_payload(
                 severity_score,
 
             "rca_confidence":
-                derive_rca_confidence(
-                    incident_links
-                ),
+                derive_rca_confidence(incident_links),
+
+            # Root cause from causal engine (enriched)
+            "root_cause": {
+                "subtype": causal_root.get("normalized_subtype") or causal_root.get("subtype"),
+                "device": causal_root.get("device"),
+                "message": causal_root.get("message"),
+                "severity": causal_root.get("severity"),
+                "score": causal_root.get("root_score"),
+                "domain": causal_root.get("normalized_domain"),
+                "interface": causal_root.get("interface_id"),
+                "timestamp": causal_root.get("corrected_time") or causal_root.get("event_time"),
+            } if causal_root else None,
 
             "propagation_depth":
                 propagation_depth,
@@ -746,20 +720,14 @@ def build_payload(
                 trigger_summary,
 
             "important_events":
-                rank_incident_evidence(
-                    cleaned_events
-                ),
+                rank_incident_evidence(cleaned_events),
 
             "causal_links":
                 incident_links[:20],
 
             "chain_statistics": {
-
-                "total_chains":
-                    len(incident_chains),
-
-                "max_depth":
-                    propagation_depth
+                "total_chains": len(incident_chains),
+                "max_depth": propagation_depth
             }
         })
 
@@ -796,55 +764,44 @@ def build_payload(
 # =========================================================
 
 SYSTEM_PROMPT = """
-You are an enterprise SRE and
-network incident investigator.
+You are a senior network SRE and infrastructure incident analyst at an enterprise NOC.
 
-Generate a concise,
-evidence-grounded
-Network Incident Investigation Report.
+Your task is to generate a professional, evidence-grounded Network Incident Investigation Report
+that a network engineer can use to triage and remediate real infrastructure failures.
 
 STRICT RULES:
 
-1. Use ONLY supplied evidence.
-2. Never invent topology,
-   hardware failures,
-   protocol mechanisms,
-   congestion,
-   overload,
-   or environmental causes.
-3. Distinguish clearly between:
-   - observed events
-   - inferred relationships
-   - hypotheses
-4. Temporal correlation alone
-   does NOT prove causality.
-5. Never claim
-   'confirmed root cause'
-   unless explicitly proven.
-6. Prefer probabilistic wording:
-   - probable
-   - inferred
-   - correlated
-   - observed
-   - suggestive
-7. Treat:
-   - packet drops
-   - ARP requests
-   - heartbeat events
-   as supporting telemetry
-   unless strongly linked.
-8. Treat:
-   - link down
-   - bgp neighbor down
-   - authentication failure
-   as probable trigger candidates.
-9. Avoid speculative explanations.
-10. Avoid repetitive incident dumps.
-11. Summarize operational patterns.
-12. Mention uncertainty explicitly.
-13. Focus on operationally useful insights.
-14. Keep language concise and professional.
-15. Never overstate confidence.
+1. Use ONLY the supplied JSON evidence. Never invent facts.
+2. Distinguish clearly between: observed events | inferred relationships | hypotheses.
+3. Temporal correlation alone does NOT prove causality.
+4. Prefer probabilistic language: probable, inferred, correlated, observed, suggestive.
+5. Never claim 'confirmed root cause' unless explicitly proven by data.
+6. Avoid speculation. Avoid repetitive event dumps.
+7. Focus on operationally useful, device-specific insights.
+8. Language must be concise, professional, and actionable.
+
+NETWORK DOMAIN CLASSIFICATION (use exactly these labels):
+- Layer 0 - Hardware: Power supply (PSU), Fan, Temperature alarms
+- Layer 1 - Physical: CRC errors, Interface down/up, Transceiver faults, Cable faults
+- Layer 2 - Switching: STP topology change, VLAN, LLDP, 802.1X, MAC-auth
+- Layer 3 - Routing: OSPF neighbor change, BGP session down, Route flap
+- Layer 4 - Security: SSH brute-force, Admin auth failure, ACL violations
+- Layer 4 - Management: SNMP, NTP, Configuration changes
+
+ROOT CAUSE PRIORITY (from most to least likely):
+  Layer 0 Hardware > Layer 1 Physical > Layer 3 Routing > Layer 2 Switching >
+  Layer 4 Management > Layer 4 Security
+
+SECURITY NOTE: SSH brute-force and authentication failures are almost NEVER the
+infrastructure root cause. They are either independent noise or a consequence of
+service disruption. Do NOT list them as root cause unless there is zero physical
+evidence and they directly correlate with outage timing.
+
+ACTIONABLE RECOMMENDATIONS MUST:
+- Reference specific device names, port IDs, or interface IDs from the data.
+- Be actionable by a network engineer right now (e.g. check cable on port 1/1/2,
+  replace PSU-2, verify OSPF neighbor config, rotate SSH keys).
+- NOT be generic advisories (e.g. 'monitor the network', 'check logs').
 """
 
 
@@ -852,42 +809,99 @@ STRICT RULES:
 # BUILD PROMPT
 # =========================================================
 
+
+
+
+def extract_top_causal_chain(payload):
+    """Extract the longest/most impactful causal chain string for the report."""
+    best_chain = None
+    best_len = 0
+    for inc in payload.get("incidents", []):
+        # The payload incidents come from build_payload() in network_incident_summarizer
+        # which does not carry causal_sequences. We rely on causal_links ordering.
+        links = inc.get("causal_links", [])
+        if links and len(links) > best_len:
+            best_len = len(links)
+            best_chain = links
+    if best_chain:
+        # Build a readable arrow chain from the top-confidence links
+        sorted_links = sorted(best_chain, key=lambda l: l.get("confidence", 0), reverse=True)
+        seen = []
+        for l in sorted_links[:6]:
+            cause = l.get("cause_type") or "?"
+            effect = l.get("effect_type") or "?"
+            if cause not in seen:
+                seen.append(cause)
+            if effect not in seen:
+                seen.append(effect)
+        return " -> ".join(seen) if seen else "N/A"
+    return "N/A"
+
+
 def build_prompt(payload):
+    top_chain = extract_top_causal_chain(payload)
+    global_summary = payload.get("global_summary", {})
+    
+    total_incidents = len(payload.get("incidents", []))
+    total_events = sum(inc.get("total_events", len(inc.get("important_events", []))) for inc in payload.get("incidents", []))
 
     return f"""
-Generate an enterprise-grade
-Network Incident Investigation Report.
+Generate an enterprise-grade Network Incident Investigation Report using EXACTLY the 6 sections below.
+Base every claim on the INPUT DATA provided at the end.
 
-Required Sections:
+---
+### SECTION 1: Executive Summary
+Write 3-5 sentences covering:
+- Total incidents ({total_incidents}) and EXACTLY {total_events} total events recorded in logs. Do not report a different number of events.
+- Overall incident severity
+- Primary operational impact on the network
 
-1. Executive Summary
-2. Incident Overview
-3. Major Operational Phases
-4. Root Cause Analysis
-5. Major Causal Patterns
-6. Impact Assessment
-7. Confidence & Limitations
-8. Recommendations
+### SECTION 2: Root Cause Analysis
+Select the MOST PROBABLE root cause following this priority:
+  Layer 0 Hardware > Layer 1 Physical > Layer 3 Routing > Layer 2 Switching > Security
 
-IMPORTANT:
+For each incident:
+- State the probable root cause event (device, port, subtype, timestamp)
+- Assign a Root Cause Confidence % based on causal link count and confidence scores:
+  - High confidence (>75%): strong causal chain + multiple correlated events
+  - Medium confidence (50-75%): partial causal chain, same device/port
+  - Low confidence (<50%): temporal correlation only
 
-- DO NOT describe every incident individually.
-- Group repetitive incidents.
-- Summarize operational patterns.
-- Use aggregate statistics.
-- Mention dominant event types only.
-- Mention dominant affected devices only.
-- Focus on recurring failure patterns.
-- Keep the report concise.
-- Avoid repetitive timelines.
-- Separate probable triggers from symptoms.
-- Never use:
-    - Confirmed Root Cause
-    - Proven Cause
-- Use:
-    - Probable Initiating Triggers
-    - Inferred Causal Patterns
-    - Supporting Evidence
+DO NOT select SSH brute-force or auth failures as root cause if any hardware or physical event is present.
+
+### SECTION 3: Top Causal Chain
+Highlight the most impactful event propagation sequence observed:
+Detected chain: {top_chain}
+
+Format as:
+[Event A] -> [Event B] -> [Event C] -> ...
+With a 1-sentence explanation of each propagation step.
+
+### SECTION 4: Impact Assessment
+- Which devices/interfaces were impacted?
+- Which network layer was most disrupted?
+- Estimated blast radius (how many downstream systems affected)?
+
+### SECTION 5: Confidence and Limitations
+- State the overall RCA confidence level (High/Medium/Low) with a percentage
+- List any data gaps or uncertainty factors
+
+### SECTION 6: Actionable Recommendations
+Provide 5-8 specific, device-level remediation steps. Each recommendation MUST:
+- Name the specific device or interface (from the data)
+- State the exact action to take (not generic advice)
+- Reference the event that triggered this recommendation
+
+Examples of GOOD recommendations:
+  - Check port 1/1/2 on [device] for cable fault or SFP degradation (triggered by CRC errors)
+  - Replace PSU-2 on [device] and verify redundant power path is active
+  - Verify OSPF neighbor configuration between [device-A] and [device-B]
+
+Examples of BAD recommendations (do NOT use):
+  - Monitor the network
+  - Review logs regularly
+  - Implement better security
+---
 
 INPUT DATA:
 
@@ -896,42 +910,125 @@ INPUT DATA:
 
 
 # =========================================================
+# HELPER LLM APIS FOR FALLBACK
+# =========================================================
+
+def call_groq_api(prompt, system_prompt, api_key):
+    import requests
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    # Try llama-3.3-70b-versatile first, fall back to llama-3.1-8b-instant
+    for model in ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]:
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.1,
+            "max_tokens": 2048
+        }
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            if response.status_code == 200:
+                return response.json()["choices"][0]["message"]["content"]
+            else:
+                print(f"[WARN] Groq model {model} failed with status {response.status_code}: {response.text}")
+        except Exception as e:
+            print(f"[WARN] Groq model {model} failed with exception: {e}")
+    return None
+
+
+def call_ollama_api(prompt, system_prompt):
+    import requests
+    import re
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
+    ollama_model = os.getenv("OLLAMA_MODEL", "gemma3:1b")
+    
+    combined_prompt = f"{system_prompt}\n\nUser request: Generate the report for this data:\n{prompt}"
+    payload = {
+        "model": ollama_model,
+        "prompt": combined_prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.1,
+            "num_predict": 2048
+        }
+    }
+    try:
+        response = requests.post(ollama_url, json=payload, timeout=60)
+        if response.status_code == 200:
+            result = response.json().get("response", "").strip()
+            # Handle and remove reasoning think tags if they exist
+            if "<think>" in result:
+                result = re.sub(r'<think>.*?</think>', '', result, flags=re.DOTALL).strip()
+            return result
+        else:
+            print(f"[WARN] Ollama API failed with status {response.status_code}: {response.text}")
+    except Exception as e:
+        print(f"[WARN] Ollama API failed with exception: {e}")
+    return None
+
+
+# =========================================================
 # GENERATE REPORT
 # =========================================================
 
 def generate_report(prompt, payload=None):
+    # Tier 1: Gemini API
+    if genai is not None and API_KEY:
+        print("[INFO] Attempting report generation using Gemini API...")
+        try:
+            try:
+                model = genai.GenerativeModel(
+                    model_name=MODEL,
+                    system_instruction=SYSTEM_PROMPT
+                )
+                prompt_with_sys = prompt
+            except TypeError:
+                # Fallback for older google-generativeai versions (like 0.3.2)
+                model = genai.GenerativeModel(
+                    model_name=MODEL
+                )
+                prompt_with_sys = f"{SYSTEM_PROMPT}\n\n{prompt}"
 
-    if genai is None:
-        return build_fallback_report(payload)
+            response = model.generate_content(
+                prompt_with_sys,
+                generation_config={
+                    "temperature": TEMPERATURE,
+                    "top_p": TOP_P,
+                    "top_k": TOP_K,
+                    "max_output_tokens": MAX_OUTPUT_TOKENS
+                }
+            )
+            if response.text:
+                print("[OK] Successfully generated report using Gemini API!")
+                return response.text
+        except Exception as e:
+            print(f"[WARN] Gemini API failed: {e}")
 
-    model = genai.GenerativeModel(
+    # Tier 2: Groq API
+    groq_key = os.getenv("GROQ_API")
+    if groq_key:
+        print("[INFO] Attempting report generation using Groq API...")
+        groq_report = call_groq_api(prompt, SYSTEM_PROMPT, groq_key)
+        if groq_report:
+            print("[OK] Successfully generated report using Groq API!")
+            return groq_report
 
-        model_name=MODEL,
+    # Tier 3: Local Ollama
+    print("[INFO] Attempting report generation using local Ollama model...")
+    ollama_report = call_ollama_api(prompt, SYSTEM_PROMPT)
+    if ollama_report:
+        print("[OK] Successfully generated report using local Ollama!")
+        return ollama_report
 
-        system_instruction=SYSTEM_PROMPT
-    )
-
-    response = model.generate_content(
-
-        prompt,
-
-        generation_config={
-
-            "temperature":
-                TEMPERATURE,
-
-            "top_p":
-                TOP_P,
-
-            "top_k":
-                TOP_K,
-
-            "max_output_tokens":
-                MAX_OUTPUT_TOKENS
-        }
-    )
-
-    return response.text
+    # Tier 4: Local structured rule-based template
+    print("[WARN] All LLM APIs failed. Falling back to local structured template generator.")
+    return build_fallback_report(payload)
 
 
 def build_fallback_report(payload):

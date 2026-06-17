@@ -93,24 +93,34 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                 }
                 # Quick subtype detection from message content
                 _SUBTYPE_RULES = [
-                    ("power", ["power supply", "psu"]),
-                    ("fan", ["fan tray", "fan speed"]),
-                    ("crc_errors", ["crc error", "excessive crc"]),
-                    ("interface_down", ["off-line", "offline", "link down", "is down"]),
-                    ("interface_up", ["on-line", "online", "link up"]),
+                    # Standard syslog patterns
+                    ("power",               ["power supply", "psu"]),
+                    ("fan",                 ["fan tray", "fan speed"]),
+                    ("crc_errors",          ["crc error", "excessive crc"]),
+                    ("interface_down",      ["off-line", "offline", "link down", "is down"]),
+                    ("interface_up",        ["on-line", "online", "link up"]),
                     ("stp_topology_change", ["topology change", "mstp", "forwarding", "learning"]),
-                    ("ospf", ["ospf"]),
-                    ("bgp", ["bgp"]),
-                    ("dot1x_failure", ["802.1x", "authentication failed"]),
-                    ("mac_auth", ["mac-auth"]),
-                    ("ssh_bruteforce", ["ssh login failed", "maximum attempts"]),
-                    ("admin_auth_failure", ["authentication failure for user"]),
-                    ("config_change", ["configuration changed"]),
-                    ("lldp", ["lldp"]),
-                    ("vlan", ["vlan"]),
-                    ("transceiver", ["transceiver"]),
-                    ("ntp", ["ntp"]),
-                    ("snmp", ["snmpd", "snmp"]),
+                    ("ospf",                ["ospf"]),
+                    ("bgp",                 ["bgp"]),
+                    ("dot1x_failure",       ["802.1x", "authentication failed"]),
+                    ("mac_auth",            ["mac-auth"]),
+                    ("ssh_bruteforce",      ["ssh login failed", "maximum attempts"]),
+                    ("admin_auth_failure",  ["authentication failure for user"]),
+                    ("config_change",       ["configuration changed"]),
+                    ("lldp",                ["lldp"]),
+                    ("transceiver",         ["transceiver"]),
+                    ("ntp",                 ["ntp"]),
+                    ("snmp",                ["snmpd", "snmp"]),
+                    # HPE 9300 / VXLAN / EVPN patterns — must be checked before generic "vlan"
+                    ("tunnel_nexthop_delete", ["nexthop delete"]),
+                    ("tunnel_nexthop_add",    ["nexthop add"]),
+                    ("tunnel_activating",     ["forwarding_state is activating"]),
+                    ("tunnel_operational",    ["forwarding_state is operational"]),
+                    ("vtep_operational",      ["vtep-peer", "vtep_peer"]),
+                    ("vni_create",            ["vni id", "vni_id"]),
+                    ("vxlan_interface",       ["interface vxlan", "vxlan"]),
+                    # Generic vlan — after vxlan/vni to avoid false matches
+                    ("vlan",                ["vlan"]),
                 ]
 
                 for i, chunk in enumerate(chunks):
@@ -488,6 +498,17 @@ def run_full_pipeline(input_path: Path, output_dir: Path, use_llm_report: bool =
 
     generate_visualization_html(timeline_data, visual_path)
 
+    # Stage 6: PDF Report Generation
+    pdf_path = output_dir / "incident_report.pdf"
+    try:
+        from generate_pdf_report import create_pdf_report
+        create_pdf_report(timeline_path, causal_path, report_path, pdf_path)
+        print(f"[OK] Saved PDF report to {pdf_path}")
+        pdf_status = str(pdf_path)
+    except Exception as e:
+        print(f"[WARN] PDF generation failed: {e}")
+        pdf_status = f"failed: {e}"
+
     return {
         "status": "success",
         "input": str(input_path),
@@ -498,6 +519,7 @@ def run_full_pipeline(input_path: Path, output_dir: Path, use_llm_report: bool =
         "timeline_output": str(timeline_path),
         "causal_output": str(causal_path),
         "report": str(report_path),
+        "pdf_report": pdf_status,
         "visualization": str(visual_path),
         "incidents": len(timeline_data),
     }
