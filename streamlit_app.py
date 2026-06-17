@@ -21,11 +21,18 @@ st.set_page_config(page_title="Network Incident Analysis", layout="wide", initia
 # ============================================================
 st.sidebar.title("🔧 Configuration")
 
-output_dir = st.sidebar.text_input(
-    "Output Directory",
-    value="pipeline_output",
-    help="Path to pipeline output folder"
+input_to_output_map = {
+    "hpe_logs.txt": "pipeline_output",
+    "hpe_logs_2.txt": "pipeline_output_2"
+}
+
+selected_log = st.sidebar.selectbox(
+    "Select Log Source:",
+    list(input_to_output_map.keys()),
+    help="Select the input log file to view its corresponding analysis output."
 )
+
+output_dir = input_to_output_map[selected_log]
 
 # Verify directory exists
 output_path = Path(output_dir)
@@ -42,14 +49,14 @@ def load_json_file(filename):
             return json.load(f)
     return None
 
-# Load all outputs
 normalized_events = load_json_file("normalized_events.json")
 schema_output = load_json_file("schema_output.json")
 timeline_output = load_json_file("timeline_output.json")
 causal_output = load_json_file("causal_inference_output.json")
 incident_report_path = output_path / "incident_report.md"
+pdf_report_path = output_path / "incident_report.pdf"
 
-st.sidebar.success("✅ All files loaded successfully!")
+st.sidebar.success(f"✅ Loaded data from `{output_dir}`")
 
 # ============================================================
 # MAIN DASHBOARD
@@ -103,56 +110,34 @@ with tab1:
 with tab2:
     st.subheader("📄 Schema Conversion Output")
     
-    hpe_logs_dir = Path("schema_conversion")
-    
-    # File mapping: HPE logs to their schema outputs
-    hpe_schema_map = {
-        "hpe_logs.txt": "schema_output.json",
-        "hpe_logs_2.txt": "schema_output (1).json"
-    }
-    
-    # Get available HPE log files
-    available_files = [f for f in hpe_schema_map.keys() if (hpe_logs_dir / f).exists()]
-    
-    if available_files:
-        selected_file = st.selectbox("Select HPE Log File:", available_files)
-        schema_file = hpe_schema_map[selected_file]
+    if schema_output:
+        st.markdown(f"**📁 Input Log:** `{selected_log}`")
+        st.markdown(f"**📊 Output Schema:** `{output_dir}/schema_output.json`")
+        st.markdown("---")
         
-        # Load corresponding schema output
-        schema_path = hpe_logs_dir / schema_file
-        if schema_path.exists():
-            with open(schema_path, 'r') as f:
-                file_schema = json.load(f)
+        # Convert to table format
+        if isinstance(schema_output, list) and len(schema_output) > 0:
+            # Extract key fields for each event
+            table_data = []
+            for event in schema_output:
+                table_data.append({
+                    "Event ID": event.get('event', {}).get('event_id', 'N/A'),
+                    "Type": event.get('event', {}).get('type', 'N/A'),
+                    "Subtype": event.get('event', {}).get('subtype', 'N/A'),
+                    "Severity": event.get('event', {}).get('severity', 'N/A'),
+                    "Device": event.get('device', {}).get('hostname', 'N/A'),
+                    "IP": event.get('device', {}).get('ip_address', 'N/A'),
+                    "Timestamp": event.get('timestamp', {}).get('original', 'N/A'),
+                    "Message": event.get('event', {}).get('message', 'N/A')[:50]
+                })
             
-            st.markdown(f"**📁 Input:** `schema_conversion/{selected_file}`")
-            st.markdown(f"**📊 Output:** `schema_conversion/{schema_file}`")
-            st.markdown("---")
-            
-            # Convert to table format
-            if isinstance(file_schema, list) and len(file_schema) > 0:
-                # Extract key fields for each event
-                table_data = []
-                for event in file_schema:
-                    table_data.append({
-                        "Event ID": event.get('event', {}).get('event_id', 'N/A'),
-                        "Type": event.get('event', {}).get('type', 'N/A'),
-                        "Subtype": event.get('event', {}).get('subtype', 'N/A'),
-                        "Severity": event.get('event', {}).get('severity', 'N/A'),
-                        "Device": event.get('device', {}).get('hostname', 'N/A'),
-                        "IP": event.get('device', {}).get('ip_address', 'N/A'),
-                        "Timestamp": event.get('timestamp', {}).get('original', 'N/A'),
-                        "Message": event.get('event', {}).get('message', 'N/A')[:50]
-                    })
-                
-                df = pd.DataFrame(table_data)
-                st.markdown(f"**Total Events:** {len(df)}")
-                st.dataframe(df, use_container_width=True, hide_index=True)
-            else:
-                st.json(file_schema)
+            df = pd.DataFrame(table_data)
+            st.markdown(f"**Total Events:** {len(df)}")
+            st.dataframe(df, use_container_width=True, hide_index=True)
         else:
-            st.warning(f"⚠️ Output file not found: {schema_file}")
+            st.json(schema_output)
     else:
-        st.info("No HPE log files found in schema_conversion directory")
+        st.warning(f"⚠️ Schema output file not found in {output_dir}")
 
 
 # ============================================================
@@ -308,13 +293,25 @@ with tab4:
 with tab5:
     st.subheader("📋 Full Incident Report")
     
+    if pdf_report_path.exists():
+        with open(pdf_report_path, "rb") as pdf_file:
+            pdf_bytes = pdf_file.read()
+        st.download_button(
+            label="📄 Download PDF Report",
+            data=pdf_bytes,
+            file_name=f"{selected_log}_incident_report.pdf",
+            mime="application/pdf",
+            type="primary"
+        )
+        st.markdown("---")
+
     if incident_report_path.exists():
         with open(incident_report_path, 'r') as f:
             report_content = f.read()
         
         st.markdown(report_content)
     else:
-        st.warning("Incident report not found!")
+        st.warning("Incident report Markdown not found!")
 
 
 # ============================================================
