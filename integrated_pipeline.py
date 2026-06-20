@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 
 from dotenv import load_dotenv
 
-from causalInference.causalInference import analyze_incident
+from causalInference.causalInference import analyze_incident, analyze_and_validate
 from preprocessing import (
     json_serializable,
     restore_datetime_fields,
@@ -17,6 +17,7 @@ from preprocessing import (
 )
 from schema_conversion.log_processor import LogProcessor
 from timeline_reconstruction import run_pipeline as run_timeline_pipeline
+from topology_extraction import extract_topology, save_topology
 
 
 load_dotenv()
@@ -392,29 +393,32 @@ def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
 
     for incident in timeline_incidents:
 
-        result = analyze_incident(incident)
+        # Stage 6 (causal inference) + Stage 7 (validate & split)
+        results = analyze_and_validate(incident)
 
-        incident_results.append(result)
+        for result in results:
+            incident_results.append(result)
 
-        total_links += len(result.get("causal_links", []))
+            total_links += len(result.get("causal_links", []))
 
-        root = result.get("root_cause")
-        if root:
-            root_causes.append(
-                {
-                    "incident_id": result.get("incident_id"),
-                    "event_uid": root.get("event_uid"),
-                    "subtype": root.get("normalized_subtype"),
-                    "device": root.get("device"),
-                    "message": root.get("message"),
-                    "score": root.get("root_score"),
-                }
-            )
+            root = result.get("root_cause")
+            if root:
+                root_causes.append(
+                    {
+                        "incident_id": result.get("incident_id"),
+                        "event_uid": root.get("event_uid"),
+                        "subtype": root.get("normalized_subtype"),
+                        "device": root.get("device"),
+                        "message": root.get("message"),
+                        "score": root.get("root_score"),
+                    }
+                )
 
-        for event in incident.get("events", []):
-            dev = event.get("device")
-            if dev:
-                affected_devices.add(dev)
+            # Collect affected devices from the result's events
+            for event in incident.get("events", []):
+                dev = event.get("device")
+                if dev:
+                    affected_devices.add(dev)
 
     return {
         "total_incidents": len(incident_results),
@@ -461,6 +465,7 @@ def run_full_pipeline(input_path: Path, output_dir: Path, use_llm_report: bool =
     schema_output_path = output_dir / "schema_output.json"
     preprocessed_path = output_dir / "preprocessed_events.json"
     normalized_path = output_dir / "normalized_events.json"
+    topology_path = output_dir / "topology_graph.json"
     timeline_path = output_dir / "timeline_output.json"
     causal_path = output_dir / "causal_inference_output.json"
     report_path = output_dir / "incident_report.md"
@@ -483,12 +488,18 @@ def run_full_pipeline(input_path: Path, output_dir: Path, use_llm_report: bool =
     )
     save_json(normalized_path, normalized_payload)
 
-    # Stage 3: Preprocessed events -> timeline reconstruction
-    timeline_data = run_timeline_pipeline(str(preprocessed_path), str(timeline_path))
+    # Stage 2: Implicit Topology Extraction (NEW)
+    from preprocessing import restore_datetime_fields
+    topo_events = restore_datetime_fields(
+        json.loads(json.dumps(preprocessed_events, default=json_serializable))
+    )
+    topo = extract_topology(topo_events)
+    save_topology(topo, topology_path)
 
-    # Causal inference is intentionally run from timeline output so flow is:
-    # schema conversion -> preprocessing -> timeline reconstruction -> causal inference.
-    # Stage 4: Timeline output -> causal inference with incident flows
+    # Stages 3-5: Timeline reconstruction (temporal alignment + compatibility + Louvain)
+    timeline_data = run_timeline_pipeline(str(preprocessed_path), str(timeline_path), topo=topo)
+
+    # Stages 6-7: Causal inference with incident validation/splitting
     causal_summary = run_causal_from_timeline(timeline_data)
     save_json(causal_path, causal_summary)
 

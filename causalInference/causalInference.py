@@ -17,7 +17,7 @@ import networkx as nx
 SEV = {"debug": 0, "info": 1, "notice": 1, "warning": 2, "warn": 2, "error": 3, "err": 3, "critical": 4, "crit": 4}
 BENIGN = {"snmp", "ntp", "vlan", "lldp", "transceiver", "interface_up", "mac_auth_success", "dot1x_logout",
           "vtep_operational", "tunnel_operational", "vni_create", "vxlan_interface", "tunnel_nexthop_add"}
-ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change", "tunnel_nexthop_delete"}
+ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change", "tunnel_nexthop_delete", "power", "fan", "crc_errors", "interface_down", "radius_failure"}
 
 # BASE scores reflect the causal weight of each event type.
 # Hardware/Physical failures score highest. VXLAN/tunnel events are Layer 2/3 overlay.
@@ -131,6 +131,7 @@ def subtype(e):
     if "authentication failure for user" in s: return "admin_auth_failure"
     if "802.1x" in s and ("failed" in s or "failure" in s): return "dot1x_failure"
     if "802.1x" in s and "logged out" in s: return "dot1x_logout"
+    if "radius" in s and ("unreachable" in s or "timeout" in s or "dead" in s): return "radius_failure"
     if "mac-auth" in s: return "mac_auth_success"
     if "transceiver" in s: return "transceiver"
     if "lldp" in s: return "lldp"
@@ -239,7 +240,6 @@ def root_score(e, idx, total):
 
     return round(score, 2)
 
-
 def is_actionable(e):
     st = subtype(e)
     sev = SEV.get(n(e.get("severity")), 1)
@@ -249,18 +249,45 @@ def is_actionable(e):
         return False
     return sev >= 2 or st in ACTIONABLE_LOW_OK
 
+def is_recovery(e):
+    s = text(e)
+    if "topology converged" in s: return True
+    return subtype(e) in {"interface_up", "mac_auth_success"} or "established" in s or "from DOWN to FULL" in s
+
 
 def relation(a, b) -> Tuple[float, Optional[str]]:
     ta, tb = parse_dt(get_time(a)), parse_dt(get_time(b))
-    if tb <= ta: return 0, None
-    lag = (tb - ta).total_seconds()
-    if lag > 1800: return 0, None
     sa, sb = subtype(a), subtype(b)
-    da, db = domain(a), domain(b)
+    
+    lag = (tb - ta).total_seconds()
     score, reasons = 0.0, []
+    if lag <= 0:
+        # Backward-time inference for systemic indicators logged slightly late
+        if sa in {"radius_failure", "bgp", "ospf"} and lag >= -120:
+            lag = abs(lag)  # Treat as positive lag for scoring
+            reasons.append("systemic lagging indicator")
+        else:
+            return 0, None
+    
+    if lag > 1800: return 0, None
+    da, db = domain(a), domain(b)
+    pa, pb = port(a), port(b)
+    if pa and pb and pa != pb:
+        # Strict block for auth across different ports (prevents auth bleed)
+        if sb in {"dot1x_failure", "dot1x_logout", "mac_auth_success", "admin_auth_failure"}:
+            return 0, None  
+        
+        # Check for shared STP instances (e.g. "Instance 0")
+        inst_a = re.search(r'Instance (\d+)', text(a), re.I)
+        inst_b = re.search(r'Instance (\d+)', text(b), re.I)
+        shares_stp = inst_a and inst_b and inst_a.group(1) == inst_b.group(1)
+        
+        if not shares_stp:
+            score -= 0.20 # General penalty for cross-port physical/routing cascade
+
     if a.get("device") == b.get("device"):
         score += 0.15; reasons.append("same device")
-    if port(a) and port(a) == port(b):
+    if pa and pa == pb:
         score += 0.35; reasons.append("same port")
 
     pairs = {
@@ -269,9 +296,13 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
         "crc_errors": {"interface_down", "stp_topology_change", "ospf", "bgp"},
         "interface_down": {"stp_topology_change", "ospf", "bgp", "dot1x_failure",
                            "tunnel_nexthop_delete", "vtep_down"},
-        "stp_topology_change": {"ospf", "bgp"},
+        "stp_topology_change": {"ospf", "bgp", "interface_down"},
         "config_change": {"interface_down", "stp_topology_change", "ospf", "bgp", "dot1x_failure"},
+        "authentication": {"config_change", "bgp", "ospf", "interface_down", "stp_topology_change"},
+        "bgp": {"ospf"},
+        "ospf": {"bgp"},
         "admin_auth_failure": {"ssh_bruteforce"},
+        "radius_failure": {"dot1x_failure"},
         "dot1x_failure": {"dot1x_logout"},
         # VXLAN/tunnel reconvergence chain:
         # underlay routing change → nexthop delete → tunnel activating → nexthop add → operational → vtep up
@@ -290,17 +321,25 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
     txt_b = text(b)
     ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text(a))
     if a.get("device_ip"): ips_a.append(a.get("device_ip"))
+    device_a = str(a.get("device", ""))
+    device_b = str(b.get("device", ""))
     for ip in ips_a:
-        if ip in txt_b:
+        # Ignore the device's own hostname/IP, but allow if it explicitly names device_b
+        if ip == device_a:
+            continue
+        if ip in txt_b or ip == device_b:
             score += 0.35; reasons.append("shared IP reference")
             break
 
     # VXLAN: correlate events sharing the same tunnel IP (e.g. 9.9.9.9)
     tunnel_ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text(a))
     tunnel_ips_b = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', txt_b)
-    if set(tunnel_ips_a) & set(tunnel_ips_b):
-        score += 0.25; reasons.append("shared tunnel IP")
-
+    for ip in tunnel_ips_a:
+        if ip == device_a or ip == device_b:
+            continue
+        if ip in tunnel_ips_b:
+            score += 0.10; reasons.append("shared tunnel IP")
+            break
     if da == db and da in {"security", "access_control", "hardware", "physical_link", "routing"}:
         score += 0.2; reasons.append("same incident domain")
 
@@ -314,27 +353,40 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
 
     if lag <= 300: score += 0.15
     elif lag <= 900: score += 0.08
+    
+    # Penalize purely circumstantial edges (e.g. same device + time window + layer jump, but no explicit link)
+    has_strong_signal = any("can lead to" in r or "same port" in r or "shared IP" in r or "same incident domain" in r or "systemic lagging indicator" in r for r in reasons)
+    if not has_strong_signal:
+        score -= 0.25
+
     if score < 0.45: return 0, None
     return round(min(score, 0.99), 2), ", ".join(reasons)
 
 
 def build_causal_graph(events, window_sec=1800):
     G = nx.DiGraph()
-    sorted_events = sorted(events, key=lambda e: parse_dt(get_time(e)))
+    # Separate recovery events from causal nodes to avoid them being roots/leafs
+    non_recovery = [e for e in events if not is_recovery(e)]
+    sorted_events = sorted(non_recovery, key=lambda e: parse_dt(get_time(e)))
     for e in sorted_events:
         G.add_node(e["event_uid"], **e)
         
     for i, a in enumerate(sorted_events):
-        ta = parse_dt(get_time(a))
-        for j in range(i + 1, len(sorted_events)):
-            b = sorted_events[j]
+        for j, b in enumerate(sorted_events):
+            if i == j: continue
+            
+            ta = parse_dt(get_time(a))
             tb = parse_dt(get_time(b))
             lag = (tb - ta).total_seconds()
+            
             if lag > window_sec:
-                break
+                if j > i: break
+                continue
+                
             conf, reason = relation(a, b)
             if conf > 0:
-                G.add_edge(a["event_uid"], b["event_uid"], confidence=conf, lag_seconds=lag, reason=reason)
+                # Use the absolute lag for the edge data so sequences don't break
+                G.add_edge(a["event_uid"], b["event_uid"], confidence=conf, lag_seconds=abs(lag), reason=reason)
     return G
 
 
@@ -433,12 +485,93 @@ def analyze_incident(inc: Dict) -> Dict:
         "incident_type": inc.get("incident_type"),
         "classification": classification,
         "event_count": len(normalized),
+        "events": inc.get("events", []),
         "root_cause": root,
         "causal_links": links,
         "causal_sequences": sequences,
         "possibly_unrelated_events": unrelated,
-        "source": "dag-production-rules",
+        "source": "dag-graph-partitioned",
     }
+
+
+def validate_and_split(inc_result: Dict, original_inc: Dict) -> List[Dict]:
+    # Rebuild the causal DAG from links
+    G = nx.DiGraph()
+    events_by_uid = {}
+    recovery_events = []
+    
+    for e in original_inc.get("events", []):
+        uid = e.get("event_uid")
+        if uid:
+            events_by_uid[uid] = e
+            if is_recovery(e):
+                recovery_events.append(e)
+            else:
+                G.add_node(uid)
+
+    for link in inc_result.get("causal_links", []):
+        src = link.get("source_event_uid")
+        tgt = link.get("target_event_uid")
+        if src and tgt and src in G.nodes() and tgt in G.nodes():
+            G.add_edge(src, tgt, **link)
+
+    # Check for disconnected components among failure events
+    weak_components = list(nx.weakly_connected_components(G))
+
+    if len(weak_components) <= 1:
+        # Single coherent incident — no split needed
+        return [inc_result]
+
+    # Multiple components: split into separate incidents
+    print(f"[VALIDATE]   ⚠ {inc_result.get('incident_id')} has "
+          f"{len(weak_components)} disconnected causal components — splitting")
+
+    split_results = []
+    base_id = inc_result.get("incident_id", "INC-0000")
+
+    for comp_idx, component in enumerate(weak_components, start=1):
+        # Build a sub-incident from this component's events
+        comp_events = [events_by_uid[uid] for uid in component if uid in events_by_uid]
+        if not comp_events:
+            continue
+
+        # Re-attach recovery events to the component that shares their device and port
+        for rec_e in recovery_events:
+            rec_dev = rec_e.get("device")
+            rec_port = port(rec_e)
+            
+            # Find the best component for this recovery event
+            for fail_e in comp_events:
+                if fail_e.get("device") == rec_dev and port(fail_e) == rec_port:
+                    if rec_e not in comp_events:
+                        comp_events.append(rec_e)
+                    break
+
+        comp_events.sort(key=lambda e: parse_dt(get_time(e)))
+
+        sub_incident = dict(original_inc)
+        sub_incident["incident_id"] = f"{base_id}-{comp_idx}"
+        sub_incident["events"] = comp_events
+        sub_incident["event_count"] = len(comp_events)
+
+        # Re-run causal analysis on just this component
+        sub_result = analyze_incident(sub_incident)
+        # Force keep original events so resolution events aren't dropped by analyze_incident
+        sub_result["events"] = comp_events
+        sub_result["split_from"] = base_id
+        split_results.append(sub_result)
+
+    return split_results if split_results else [inc_result]
+
+
+def analyze_and_validate(inc: Dict) -> List[Dict]:
+    """
+    Run causal analysis (Stage 6) then validation/splitting (Stage 7).
+
+    Returns a list of incident results (1 if coherent, N if split).
+    """
+    result = analyze_incident(inc)
+    return validate_and_split(result, inc)
 
 
 def load_timeline(path):

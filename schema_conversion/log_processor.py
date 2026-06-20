@@ -149,21 +149,18 @@ class LogProcessor:
         core_message: str,
         template_hash: str
     ) -> Optional[Dict]:
-        """
-        Find matching template in registry by hash
-        
-        Args:
-            core_message: The core message to match
-            template_hash: Pre-calculated template hash
-        
-        Returns:
-            Matching template entry or None
-        """
-        
+        import re
+        for template_entry in self.template_registry:
+            regex_pattern = template_entry.get("regex_pattern")
+            if regex_pattern:
+                try:
+                    if re.match(regex_pattern, core_message):
+                        return template_entry
+                except Exception:
+                    pass
         for template_entry in self.template_registry:
             if template_entry.get("template_hash") == template_hash:
                 return template_entry
-        
         return None
     
     # ========================================================
@@ -314,20 +311,52 @@ class LogProcessor:
         # offline-friendly and avoids HTTP calls to local LLM servers.
         if getattr(self, "no_llm", False):
             try:
-                # Basic core message is the raw log itself
                 core = raw_log.strip()
-
-                # Try fuzzy timestamp parsing if dateutil is available
                 ts = None
-                try:
-                    from dateutil import parser as date_parser  # type: ignore
-                    parsed = date_parser.parse(core, fuzzy=True)
-                    if parsed.tzinfo is None:
-                        from datetime import timezone
-                        parsed = parsed.replace(tzinfo=timezone.utc)
-                    ts = parsed.isoformat()
-                except Exception:
-                    ts = None
+                hostname = None
+                ip = None
+                
+                # Basic syslog regex: (Month Day Time) (Hostname/IP) (Message)
+                # Example: May 14 14:00:02 192.168.1.10 ntpd[210]: ...
+                m = re.match(r'^([A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(\S+)\s+(.*)', core)
+                if m:
+                    ts_str, host_str, rest = m.groups()
+                    try:
+                        from dateutil import parser as date_parser
+                        from datetime import timezone, datetime
+                        # Assume current year if missing
+                        parsed = date_parser.parse(f"{datetime.now().year} {ts_str}")
+                        if parsed.tzinfo is None:
+                            parsed = parsed.replace(tzinfo=timezone.utc)
+                        ts = parsed.isoformat()
+                    except Exception:
+                        pass
+                    
+                    hostname = host_str
+                    if re.match(r'^\d+\.\d+\.\d+\.\d+$', host_str):
+                        ip = host_str
+                    
+                    core = rest # the remainder is the core message
+                else:
+                    # ISO8601 regex: (2026-04-03T09:58:04Z) (Hostname) (Message)
+                    m2 = re.match(r'^(\d{4}-\d{2}-\d{2}T[^\s]+)\s+(\S+)\s+(.*)', core)
+                    if m2:
+                        ts_str, host_str, rest = m2.groups()
+                        try:
+                            from dateutil import parser as date_parser
+                            from datetime import timezone
+                            parsed = date_parser.parse(ts_str)
+                            if parsed.tzinfo is None:
+                                parsed = parsed.replace(tzinfo=timezone.utc)
+                            ts = parsed.isoformat()
+                        except Exception:
+                            pass
+                        
+                        hostname = host_str
+                        if re.match(r'^\d+\.\d+\.\d+\.\d+$', host_str):
+                            ip = host_str
+                            
+                        core = rest
 
                 if not ts:
                     from datetime import datetime, timezone
@@ -337,8 +366,8 @@ class LogProcessor:
                     "raw_log": raw_log,
                     "core_message": core,
                     "timestamp": ts,
-                    "hostname": None,
-                    "ip": None,
+                    "hostname": hostname,
+                    "ip": ip,
                     "vendor": None,
                     "os": None,
                 }
@@ -716,6 +745,14 @@ class LogProcessor:
         # STAGE 1.5: TEMPLATE MATCHING
         # ========================================================
         
+        # Fast regex match before doing any LLM calls
+        matched_template = self.match_template(core_message, None)
+        if matched_template:
+            print(f"[OK] REGEX MATCHED! Using auto-conversion...")
+            output_record = self.auto_convert_to_schema(stage1_entry, matched_template, line_number)
+            self.stats["template_matched"] += 1
+            return output_record
+
         # If no_llm mode is enabled, skip template generation and LLM analysis
         if getattr(self, "no_llm", False):
             print("-> no_llm enabled: skipping template generation and LLM stages")
@@ -755,7 +792,7 @@ class LogProcessor:
 
             print("[OK] Produced minimal record in no_llm mode")
             return output_record
-
+            
         print("-> STAGE 1.5: Generating template hash...")
         
         template_entry = self.generate_template_single_log(core_message)
