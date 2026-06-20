@@ -32,9 +32,11 @@ from collections import Counter
 from dotenv import load_dotenv
 
 try:
-    import google.generativeai as genai
+    import google.generativeai as genai  # type: ignore[import-untyped]
 except Exception:
-    genai = None
+    genai = None  # type: ignore[assignment]
+
+genai = genai  # re-export to satisfy static analysis
 
 
 

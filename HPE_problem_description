@@ -1,0 +1,813 @@
+# Network Incident Reconstruction and Root Cause Analysis System
+
+## Comprehensive Problem Description
+
+---
+
+## 1. Industry Context and Motivation
+
+Modern enterprise networks are complex, heterogeneous ecosystems composed of switches, routers, firewalls, access points, and a variety of specialized appliances sourced from multiple vendors. These networks span geographically distributed data centers, campus environments, and edge locations — each generating a continuous, high-volume stream of telemetry data.
+
+A single enterprise campus network can produce **millions of log entries per day** across its infrastructure. These logs originate from diverse subsystems including:
+
+- **Syslog daemons** reporting system-level events (process restarts, service failures)
+- **Interface managers** tracking port state transitions (link up/down, transceiver insertions)
+- **Routing protocol engines** (BGP, OSPF) reporting neighbor adjacency changes
+- **Spanning Tree Protocol (STP/MSTP)** engines detecting topology changes
+- **Authentication services** (802.1X, MAC-Auth) logging access control decisions
+- **Security subsystems** flagging brute-force attempts, unauthorized access
+- **Hardware monitors** reporting power supply failures, fan speed anomalies
+- **Configuration management** auditing administrative changes
+- **Network Time Protocol (NTP)** reporting clock synchronization status
+- **LLDP/CDP** neighbor discovery and link-layer adjacency tracking
+
+When a network incident occurs — such as a cascading failure triggered by a physical link going down — the resulting chain of events propagates across multiple devices, protocols, and network layers in a matter of seconds. An interface failure on one switch can trigger STP topology recalculations, which destabilize BGP sessions on upstream routers, leading to packet loss and authentication failures on downstream access switches.
+
+### The Core Challenge
+
+**Manually correlating these events to understand the progression of an incident is extraordinarily time-consuming, error-prone, and requires deep domain expertise.** A network operations engineer investigating a major outage must:
+
+1. Collect logs from multiple devices (often in different formats)
+2. Mentally normalize timestamps across devices with potential clock skew
+3. Sort through thousands of irrelevant log lines to find the relevant events
+4. Identify which events are causally related vs. merely coincidental
+5. Determine the originating root cause vs. downstream symptoms
+6. Distinguish failure events from recovery events
+7. Trace the propagation path across device boundaries
+8. Document findings in a coherent report for stakeholders
+
+This process typically takes **hours to days** for a single complex incident, and the quality of the analysis depends heavily on the experience of the individual engineer. Critical root causes can be missed, leading to recurring outages and prolonged mean time to resolution (MTTR).
+
+---
+
+## 2. Problem Statement
+
+### 2.1 Primary Problem
+
+Given a collection of raw network log data from one or more network devices — potentially spanning multiple vendors, log formats, and time zones — the system must automatically:
+
+1. **Parse and normalize** the heterogeneous log entries into a unified, structured event representation
+2. **Reconstruct a coherent timeline** of events, correcting for clock skew and temporal inconsistencies across distributed devices
+3. **Identify causal relationships** between events, distinguishing root causes from propagating symptoms
+4. **Extract ordered causal chains** that trace the propagation path of each incident from its initiating trigger to its terminal effects
+5. **Generate human-readable reports** that explain the incident in natural language, suitable for both technical and executive audiences
+
+### 2.2 Key Sub-Problems
+
+#### 2.2.1 Log Heterogeneity
+
+Network devices from different vendors (HPE/Aruba, Cisco, Juniper, etc.) produce logs in vastly different formats:
+
+- **Syslog (RFC 3164/5424)**: Semi-structured text with varying timestamp formats
+- **Structured JSON**: Vendor-specific schemas with nested fields
+- **SNMP traps**: Object identifier (OID) based notifications
+- **CLI output**: Free-form text from command outputs
+
+Each format uses different field names, severity classifications, event identifiers, and message templates. A "link down" event might appear as:
+
+```
+# HPE/Aruba AOS-CX
+May 14 14:20:15 192.168.1.104 hpe-port-mgr[564]: [port.info] Port 1/1/2 is now off-line
+
+# Cisco IOS
+%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down
+
+# Juniper Junos
+rpd[1234]: RPD_OSPF_NBRDOWN: OSPF neighbor 10.0.0.1 on ge-0/0/0.0 state changed from Full to Down
+```
+
+The system must map all of these into a single, canonical representation.
+
+#### 2.2.2 Temporal Alignment
+
+Events from multiple devices may have:
+
+- **Clock skew**: Devices not synchronized to the same NTP source, with drift ranging from milliseconds to minutes
+- **Different timestamp formats**: Epoch, ISO 8601, RFC 3164 (no year), local time vs. UTC
+- **Different time zones**: Devices in geographically distributed deployments
+- **Missing timestamps**: Some log entries lack precise timing information
+
+Accurate temporal ordering is critical because causality inference depends on the correct sequencing of events. An event can only cause another event if it occurred before it.
+
+#### 2.2.3 Cross-Device Event Correlation
+
+Network incidents frequently propagate across device boundaries. A physical link failure on Switch A affects Router B (which is the BGP peer on the other end of that link), which in turn affects Switch C (which routes traffic through Router B). The system must:
+
+- Identify that events on different devices are part of the same incident
+- Correlate events using shared attributes (IP addresses, interface names, VLAN IDs, BGP peer relationships)
+- Merge device-local event clusters into cross-device "super-incidents"
+
+#### 2.2.4 Causality vs. Correlation
+
+Two events occurring close in time does not mean one caused the other. The system must distinguish:
+
+- **Causal relationships**: Interface down → STP topology change → BGP session loss (genuine propagation)
+- **Temporal coincidence**: A scheduled NTP sync happening during an unrelated link failure
+- **Recovery events**: An "interface up" event is a *consequence* of remediation, not a root cause
+
+Causality should respect the **network layer hierarchy** — failures typically propagate upward from physical (Layer 1) through data link (Layer 2) to routing (Layer 3) and application layers. Downward propagation (e.g., a routing change causing a physical link failure) is unusual and should be scored accordingly.
+
+#### 2.2.5 Root Cause Identification
+
+Among potentially hundreds of events in an incident, the system must identify the **initiating trigger** — the event that set the cascade in motion. Root cause candidates should be scored based on:
+
+- Temporal position (earlier events are more likely root causes)
+- Network layer (lower-layer events are more likely root causes)
+- Event type (failure events vs. recovery events vs. informational events)
+- Graph topology (source nodes with many downstream effects)
+
+#### 2.2.6 Scalability
+
+Enterprise networks can generate log volumes ranging from thousands to hundreds of thousands of events per incident window. Naive all-pairs comparison (O(n²)) becomes computationally infeasible at scale. The system must use efficient algorithms that scale sub-quadratically with event count.
+
+---
+
+## 3. System Objectives
+
+The system aims to achieve the following objectives:
+
+| # | Objective | Description |
+|---|-----------|-------------|
+| 1 | **Multi-vendor log processing** | Accept and parse logs from HPE/Aruba AOS-CX, Cisco IOS/IOS-XE, Juniper Junos, and generic syslog formats |
+| 2 | **Unified schema normalization** | Convert all log formats into a single, standardized event representation |
+| 3 | **Intelligent timeline reconstruction** | Reconstruct chronologically accurate event timelines with clock skew correction |
+| 4 | **Cross-device incident correlation** | Group events from multiple devices into coherent incident clusters |
+| 5 | **Causal relationship inference** | Identify cause-effect relationships between events using temporal, topological, and domain-specific heuristics |
+| 6 | **Root cause detection** | Identify the most probable initiating trigger for each incident |
+| 7 | **Causal chain extraction** | Extract ordered sequences showing the propagation path from root cause to terminal effects |
+| 8 | **Natural language summarization** | Generate human-readable incident explanations using large language models |
+| 9 | **Visual incident reporting** | Produce interactive visualizations including timelines, causal graphs, and dashboards |
+| 10 | **Report generation** | Generate comprehensive incident reports in multiple formats (Markdown, HTML, PDF) |
+
+---
+
+## 4. System Architecture
+
+The system is organized as a modular pipeline, where each stage transforms data and passes it to the next:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        RAW LOG INPUT                                    │
+│          (Syslog, JSON, SNMP, multi-vendor, multi-device)               │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                   MODULE 1: KNOWLEDGE BASE                              │
+│     Vendor documentation, event definitions, message templates          │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│              MODULE 2: RAG RETRIEVAL ENGINE                             │
+│   Semantic + lexical similarity search to match logs to templates       │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│              MODULE 3: PATTERN GENERATION                               │
+│        Auto-generate regex patterns from retrieved templates            │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│              MODULE 4: PATTERN MATCHING                                 │
+│      Apply patterns to extract structured fields from raw logs          │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│              MODULE 5: SCHEMA CONVERSION                                │
+│     Map extracted fields into the unified event schema                  │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│           MODULE 6: TIMELINE RECONSTRUCTION                             │
+│  Temporal alignment, clock skew correction, event clustering            │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│             MODULE 7: CAUSAL INFERENCE                                  │
+│  DAG construction, causal scoring, root cause detection,                │
+│  causal sequence extraction                                             │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│         MODULE 8: NATURAL LANGUAGE SUMMARIZATION                        │
+│     LLM-powered incident explanation and narrative generation           │
+└────────────────────────────┬────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│     MODULE 9: VISUALIZATION          MODULE 10: REPORT GENERATION       │
+│   Interactive timelines, causal       Markdown, HTML, PDF reports        │
+│   graphs, dashboards                  with executive summaries           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. Detailed Module Descriptions
+
+### Module 1: Unified Event Schema
+
+A common schema is required to represent logs from different vendors and platforms in a standardized format. This is the foundational data model upon which all downstream processing depends.
+
+#### Core Schema Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event_uid` | string | Globally unique identifier for the event |
+| `event_id` | string | Vendor-specific event identifier (e.g., `INTF_DOWN`, `BGP_UP`) |
+| `event_time` | ISO 8601 | Normalized event timestamp in UTC |
+| `type` | string | High-level event category (e.g., `interface`, `routing`, `authentication`, `security`, `system`) |
+| `subtype` | string | Detailed event classification (e.g., `link down`, `bgp neighbor down`, `authentication failure`) |
+| `severity` | string | Normalized severity level: `info`, `notice`, `warning`, `error`, `critical` |
+| `message` | string | Normalized, human-readable event description |
+| `raw_message` | string | Original, unmodified log entry |
+| `hostname` | string | Device hostname |
+| `ip` | string | Primary IP address of the device |
+| `interface_id` | string | Interface or port identifier (e.g., `1/1/1`, `Gig1/0/4`) |
+| `vlan` | integer | Associated VLAN ID |
+| `vendor` | string | Device vendor (e.g., `Aruba`, `Cisco`, `Juniper`) |
+| `os` | string | Platform/OS family (e.g., `AOS-CX`, `IOS-XE`, `Junos`) |
+
+#### Extended Fields (per event type)
+
+| Context | Additional Fields |
+|---------|-------------------|
+| Routing | `bgp_peer_ip`, `ospf_neighbor_id`, `as_number`, `route_prefix` |
+| Authentication | `client_mac`, `auth_method` (802.1X, MAC-Auth), `auth_result` |
+| Security | `source_ip`, `attack_type`, `blocked` (boolean) |
+| Hardware | `component` (PSU, fan tray), `status`, `threshold` |
+| Configuration | `changed_by`, `access_method` (SSH, console), `config_section` |
+
+---
+
+### Module 2: Knowledge Base Construction
+
+A structured knowledge base provides the reference information needed to identify and classify network events.
+
+#### Knowledge Base Contents
+
+- **Event identifiers**: Catalog of known event IDs across vendors (e.g., `%LINK-3-UPDOWN` for Cisco, `hpe-port-mgr` messages for Aruba)
+- **Event categories**: Hierarchical taxonomy mapping event IDs to types and subtypes
+- **Message templates**: Parameterized templates describing the expected format of each event message, with placeholders for variable fields (e.g., `Port <PORT_NAME> is now <STATE>`)
+- **Vendor metadata**: Vendor name, product family, OS version ranges, supported features
+- **Severity mappings**: Vendor-specific severity to normalized severity translation tables
+- **Confidence scores**: Trust ratings for each knowledge entry based on source reliability
+
+#### Knowledge Sources
+
+- Vendor documentation (MIBs, syslog reference guides)
+- Event definition databases
+- Community-maintained log format repositories
+- Historical log analysis
+
+---
+
+### Module 3: Retrieval-Augmented Generation (RAG)
+
+The RAG module bridges the gap between unknown raw logs and the structured knowledge base. Given a raw log line, it retrieves the most relevant event template from the knowledge base.
+
+#### Retrieval Workflow
+
+```
+Raw Log Entry
+     │
+     ▼
+Text Normalization (lowercase, remove noise)
+     │
+     ▼
+Embedding Generation (Sentence Transformer)
+     │
+     ▼
+FAISS Vector Similarity Search
+     │
+     ▼
+Top-K Candidate Templates Retrieved
+     │
+     ▼
+Hybrid Re-Ranking (semantic + lexical + structural)
+     │
+     ▼
+Best Matching Template
+```
+
+#### Hybrid Ranking Components
+
+| Component | Weight | Description |
+|-----------|--------|-------------|
+| Semantic similarity | 0.35 | Cosine similarity between dense vector embeddings |
+| Lexical similarity | 0.25 | Token overlap and TF-IDF based matching |
+| Structural similarity | 0.20 | Similarity in log structure (field positions, delimiters) |
+| Domain keyword matching | 0.10 | Presence of known networking terms (BGP, OSPF, STP, etc.) |
+| Trust score | 0.10 | Confidence rating of the knowledge base entry |
+
+---
+
+### Module 4: Pattern Generation
+
+Once the best-matching template is retrieved, it is automatically transformed into a parsing pattern (regular expression) that can extract variable fields from the raw log.
+
+#### Example Transformation
+
+| Input Template | Generated Pattern |
+|----------------|-------------------|
+| `Port <PORT_NAME> is now <STATE>` | `Port (?P<PORT_NAME>.+?) is now (?P<STATE>.+?)` |
+| `BGP peer <PEER_IP> session <STATUS>` | `BGP peer (?P<PEER_IP>\d+\.\d+\.\d+\.\d+) session (?P<STATUS>.+?)` |
+| `Port <PORT_NAME> re-auth timeout <TIME> too short` | `Port (?P<PORT_NAME>.+?) re-auth timeout (?P<TIME>.+?) too short` |
+
+#### Type-Aware Placeholder Expansion
+
+| Placeholder Type | Regex Pattern |
+|------------------|---------------|
+| `<IP_ADDRESS>` | `\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}` |
+| `<MAC_ADDRESS>` | `[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}` |
+| `<PORT_NAME>` | `[\w/]+` |
+| `<VLAN_ID>` | `\d+` |
+| `<GENERIC>` | `.+?` |
+
+---
+
+### Module 5: Pattern Matching
+
+Generated patterns are applied to incoming raw logs to extract structured fields.
+
+#### Extraction Workflow
+
+```
+Raw Log
+  │
+  ▼
+Regex Pattern Matching
+  │
+  ▼
+Named Group Extraction
+  │
+  ▼
+Placeholder → Schema Field Mapping
+  │
+  ▼
+Structured Event (partial)
+```
+
+#### Extracted Information Categories
+
+- **Network identifiers**: Interface IDs, VLAN IDs, IP addresses, MAC addresses
+- **Device identifiers**: Hostnames, process names, PIDs
+- **Event parameters**: State transitions, severity levels, counters, thresholds
+- **Temporal fields**: Timestamps in various formats
+- **Security fields**: Usernames, authentication methods, source IPs
+
+---
+
+### Module 6: Schema Conversion
+
+Extracted fields from pattern matching are mapped into the unified event schema. This normalization step ensures that logs from different vendors are represented consistently.
+
+#### Field Mapping Examples
+
+| Extracted Placeholder | Schema Field | Normalization |
+|-----------------------|--------------|---------------|
+| `PORT_NAME` | `interface_id` | Normalize port naming conventions |
+| `IP_ADDRESS` | `ip` | Validate and standardize format |
+| `VLAN_ID` | `vlan` | Convert to integer |
+| `MAC_ADDRESS` | `client_mac` | Normalize to colon-separated lowercase |
+| `PEER_IP` | `bgp_peer_ip` | Validate as IPv4/IPv6 |
+| `STATE` (up/down/online/offline) | `subtype` | Map to canonical state name |
+
+#### Severity Normalization
+
+| Vendor-Specific | Normalized |
+|-----------------|------------|
+| `emerg`, `alert` | `critical` |
+| `crit` | `critical` |
+| `err` | `error` |
+| `warn` | `warning` |
+| `notice` | `notice` |
+| `info`, `debug` | `info` |
+
+---
+
+### Module 7: Timeline Reconstruction
+
+Timeline reconstruction organizes normalized events into a coherent chronological sequence, grouping related events into incident clusters.
+
+#### Key Functions
+
+##### Temporal Alignment
+Corrects timestamp inconsistencies between different devices, handling:
+- Mixed timestamp formats (epoch, ISO 8601, syslog format without year)
+- Missing year fields in syslog timestamps (RFC 3164)
+- Timezone differences across geographically distributed devices
+
+##### Clock Skew Detection and Correction
+Identifies and compensates for clock drift between devices using:
+- NTP synchronization events as reference points
+- Known event pairs that must be temporally ordered (e.g., request → response)
+- Statistical analysis of event timing distributions
+
+##### Event Ordering
+Sorts events based on normalized, corrected timestamps. When timestamps are identical, secondary ordering criteria include:
+- Severity (higher severity first)
+- Event type priority (lower network layers first)
+- Device hostname (alphabetical for determinism)
+
+##### Event Clustering
+Groups temporally and contextually related events into incident clusters:
+
+**Phase A — Device-Level Clustering:**
+Events on the same device within a configurable time window (default: 5 minutes) are grouped into device-local incident clusters.
+
+**Phase B — Cross-Device Correlation:**
+Device-local clusters are evaluated for cross-device relationships and merged into "super-incidents" when sufficient correlation evidence exists:
+
+| Correlation Signal | Description |
+|-------------------|-------------|
+| Shared IP references | BGP neighbor IP on Device A matches Device B's management IP |
+| Temporal overlap | Clusters have overlapping or close time windows |
+| Compatible event domains | Physical link events on Device A + routing events on Device B |
+| Shared VLAN/subnet | Events reference the same VLAN ID or IP subnet |
+| Severity escalation | Lower severity on Device A, higher severity on Device B, with B starting after A |
+
+---
+
+### Module 8: Causal Inference and Root Cause Analysis
+
+This is the core analytical module. It determines **why** an incident occurred by identifying cause-effect relationships between events and detecting the most probable root cause.
+
+#### Causal Inference Workflow
+
+```
+Incident Event Cluster
+        │
+        ▼
+Normalize & Score Individual Events
+        │
+        ▼
+Time-Windowed Pair Evaluation
+        │
+        ▼
+Causal Scoring (multi-factor)
+        │
+        ▼
+Directed Acyclic Graph (DAG) Construction
+        │
+        ▼
+Root Cause Detection (source node analysis)
+        │
+        ▼
+Causal Sequence Extraction (path finding)
+        │
+        ▼
+Output: Root Cause + Causal Links + Causal Chains
+```
+
+#### Causal Scoring Factors
+
+For each candidate event pair (A → B), causality is evaluated using multiple weighted factors:
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| **Temporal proximity** | 0.25 | Events closer in time are more likely causally related. Decays with increasing time lag. |
+| **Network layer hierarchy** | 0.20 | Failures propagating from lower layers (physical) to higher layers (routing, application) receive a bonus. Reverse propagation is penalized. |
+| **Device/interface affinity** | 0.20 | Events on the same device or connected interfaces are more likely related. |
+| **Severity progression** | 0.15 | Escalating severity (info → warning → error → critical) suggests causal propagation. |
+| **Domain-specific transitions** | 0.15 | Known causal patterns (e.g., `interface_down` → `bgp_neighbor_down`) receive a bonus. |
+| **Recovery event penalty** | -0.30 | Recovery events (interface up, BGP established) are heavily penalized as root cause candidates. |
+
+#### Network Layer Hierarchy Model
+
+Failures in enterprise networks typically propagate **upward** through the OSI/network layer stack:
+
+```
+Layer 0: Physical/Environmental  (power supply, fan, temperature)
+    ↓
+Layer 1: Physical Link           (interface down, CRC errors, transceiver)
+    ↓
+Layer 2: Data Link               (STP topology change, VLAN, LLDP, MAC-Auth)
+    ↓
+Layer 3: Network/Routing         (BGP, OSPF, config change)
+    ↓
+Layer 4+: Application/Security   (SSH brute-force, admin auth failure)
+```
+
+An interface failure (Layer 1) causing a BGP session to drop (Layer 3) is a natural, expected propagation. A BGP configuration change (Layer 3) causing a physical transceiver failure (Layer 1) would be highly unusual.
+
+#### Known Causal Transition Patterns
+
+| Cause Event | Effect Event | Confidence Boost |
+|-------------|-------------|------------------|
+| `interface_down` | `stp_topology_change` | +0.3 |
+| `interface_down` | `bgp_neighbor_down` | +0.3 |
+| `stp_topology_change` | `packet_drop` | +0.2 |
+| `bgp_neighbor_down` | `ospf_neighbor_down` | +0.2 |
+| `power_failure` | `interface_down` | +0.4 |
+| `crc_errors` | `interface_down` | +0.3 |
+| `config_change` | `bgp_neighbor_down` | +0.2 |
+| `dot1x_failure` | `interface_down` | +0.15 |
+
+#### Root Cause Identification
+
+Root causes are identified as source nodes (nodes with no incoming edges, but at least one outgoing edge) within the causal DAG. Candidates are scored based on:
+
+- **Graph position**: Source nodes with the most downstream descendants
+- **Event severity**: Higher severity contributes to root cause likelihood
+- **Network layer**: Lower-layer events are more likely root causes
+- **Recovery penalty**: Recovery events are excluded from root cause consideration
+
+#### Causal Sequence Extraction
+
+The system extracts **ordered causal chains** — complete propagation paths from root cause to terminal effect — from the DAG:
+
+```
+Example Causal Sequence:
+
+  Step 1: [ROOT CAUSE]      Power Supply PSU-2 Failure     (Switch-A, Layer 0)
+      │   confidence: —
+      ▼
+  Step 2: [PROPAGATION]     Interface 1/1/1 Down           (Switch-A, Layer 1)
+      │   confidence: 0.92, lag: 2.3s
+      ▼
+  Step 3: [PROPAGATION]     STP Topology Change            (Switch-A, Layer 2)
+      │   confidence: 0.87, lag: 0.5s
+      ▼
+  Step 4: [PROPAGATION]     BGP Neighbor 10.10.10.2 Down   (Router-B, Layer 3)
+      │   confidence: 0.78, lag: 4.1s
+      ▼
+  Step 5: [TERMINAL EFFECT] OSPF Neighbor Down on VLAN 20  (Router-B, Layer 3)
+         confidence: 0.71, lag: 1.2s
+```
+
+Each sequence captures:
+- The step number and role (root cause, propagation, terminal effect)
+- The event details (device, subtype, severity, timestamp)
+- The confidence score and time lag from the previous event in the chain
+- The causal reasoning explanation
+
+---
+
+### Module 9: Natural Language Incident Summarization
+
+The reconstructed incident information — timeline, causal graph, root cause, and affected systems — is converted into human-readable explanations using Large Language Models (LLMs).
+
+#### Input to Summarization
+
+| Input | Description |
+|-------|-------------|
+| Event timeline | Chronologically ordered list of normalized events |
+| Causal graph | Directed acyclic graph of cause-effect relationships |
+| Root cause | Highest-scored root cause candidate with evidence |
+| Causal sequences | Ordered propagation chains |
+| Affected systems | List of impacted devices, interfaces, and services |
+
+#### Output
+
+The LLM generates a narrative that explains:
+- **What happened**: A concise description of the incident
+- **Why it happened**: The root cause and the chain of events
+- **What was affected**: Devices, interfaces, services, and users impacted
+- **What to do next**: Recommended remediation actions
+
+#### Fallback Mode
+
+When an LLM API is unavailable, the system falls back to a deterministic template-based summarization engine that constructs reports using predefined narrative patterns.
+
+---
+
+### Module 10: Visualization
+
+Visualization components provide intuitive, interactive incident analysis for network operations teams.
+
+#### Visualization Types
+
+| View | Description |
+|------|-------------|
+| **Timeline View** | Chronological event progression with severity-coded markers, device swim lanes, and zoom/pan controls |
+| **Causal Graph View** | Interactive directed graph showing cause-effect relationships, with nodes colored by event type and edges weighted by confidence |
+| **Root Cause View** | Highlighted view emphasizing the most probable initiating trigger and its downstream impact radius |
+| **Severity Heatmap** | Time-based heatmap showing severity distribution across devices |
+| **Device Topology** | Network diagram showing affected devices and the propagation path |
+
+---
+
+### Module 11: Report Generation
+
+The reporting engine generates comprehensive incident documentation suitable for multiple audiences.
+
+#### Report Sections
+
+| Section | Content |
+|---------|---------|
+| **Executive Summary** | High-level incident overview: total events, incidents, devices affected, probable root cause |
+| **Timeline Reconstruction** | Chronological event listing with annotations |
+| **Root Cause Analysis** | Detailed explanation of the identified root cause with confidence scoring |
+| **Causal Chain Analysis** | Ordered propagation sequences with step-by-step explanations |
+| **Event Correlation** | Cross-device event correlations and clustering rationale |
+| **Impact Assessment** | Affected devices, interfaces, protocols, and services |
+| **Confidence and Limitations** | Caveats about inference confidence and data quality |
+| **Recommendations** | Actionable remediation steps and monitoring improvements |
+
+#### Output Formats
+
+- **Markdown**: Lightweight, version-control-friendly format
+- **HTML**: Interactive reports with embedded visualizations
+- **PDF**: Formal reports for compliance and audit purposes
+
+---
+
+## 6. Input Specifications
+
+### Supported Input Formats
+
+| Format | Description | Example |
+|--------|-------------|---------|
+| **Raw syslog text** | One log entry per line, BSD or IETF syslog format | `May 14 14:20:15 192.168.1.104 hpe-port-mgr[564]: [port.info] Port 1/1/2 is now off-line` |
+| **Structured JSON** | Pre-normalized events with nested `event`, `device`, `network`, `timestamps`, and `raw` fields | See unified schema definition above |
+| **Mixed text files** | Log files containing entries from multiple devices and formats | Multi-device log aggregator output |
+
+### Example: Raw Syslog Input
+
+```
+May 14 14:02:11 192.168.1.104 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed
+May 14 14:05:01 192.168.1.104 hpe-port-mgr[564]: [port.info] Port 1/1/1 is now on-line
+May 14 14:15:01 192.168.1.104 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client 00:11:22:33:44:55 on port 1/1/5
+May 14 14:20:15 192.168.1.104 hpe-port-mgr[564]: [port.info] Port 1/1/2 is now off-line
+May 14 14:21:02 192.168.1.104 hpe-port-mgr[564]: [port.warn] Port 1/1/12: Excessive CRC errors detected
+May 14 14:35:19 192.168.1.104 hpe-security[710]: [security.crit] SSH login failed from IP 203.0.113.5: Maximum attempts exceeded
+May 14 14:40:05 192.168.1.104 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/1
+May 14 14:42:33 192.168.1.104 hpe-routing[645]: [bgp.info] BGP peer 10.10.10.2 session established
+May 14 14:43:10 192.168.1.104 hpe-routing[645]: [ospf.warn] OSPF neighbor 192.168.2.1 on VLAN 20 changed state from FULL to DOWN
+May 14 14:51:15 192.168.1.104 hpe-ptm[505]: [hw.crit] Power supply PSU-2 failure detected
+May 14 14:52:44 192.168.1.104 hpe-ptm[505]: [hw.warn] Fan tray 1 speed out of normal range (High)
+```
+
+### Example: Structured JSON Input
+
+```json
+{
+  "event": {
+    "event_uid": "e3",
+    "event_id": "INTF_DOWN",
+    "type": "interface",
+    "subtype": "link down",
+    "severity": "critical",
+    "message": "link down occurred"
+  },
+  "device": {
+    "hostname": "switch-1",
+    "ip": "10.0.0.3",
+    "vendor": "Aruba",
+    "os": "AOS-CX"
+  },
+  "network": {
+    "interface_id": "Gig1/0/4",
+    "vlan": 40
+  },
+  "timestamps": {
+    "event_time": "2026-04-20T10:00:08Z",
+    "ingestion_time": "2026-04-20T10:00:28Z"
+  },
+  "raw": {
+    "message": "RAW LOG: link down"
+  }
+}
+```
+
+---
+
+## 7. Output Specifications
+
+### Primary Outputs
+
+| Output | Format | Description |
+|--------|--------|-------------|
+| `normalized_events.json` | JSON | All input logs converted to the unified event schema |
+| `timeline_output.json` | JSON | Event timeline with incident clusters and temporal ordering |
+| `causal_inference_output.json` | JSON | Causal DAG edges, root cause analysis, and causal sequences |
+| `incident_report.md` | Markdown | Human-readable incident investigation report |
+| `incident_visualization.html` | HTML | Interactive visual report with embedded charts and graphs |
+
+### Causal Inference Output Structure
+
+```json
+{
+  "total_incidents": 3,
+  "total_causal_links": 47,
+  "incidents": [
+    {
+      "incident_id": "INC-0001",
+      "classification": "actionable",
+      "event_count": 12,
+      "root_cause": {
+        "event_uid": "e42",
+        "subtype": "interface_down",
+        "device": "switch-1",
+        "score": 87.5,
+        "confidence": "high"
+      },
+      "causal_links": [
+        {
+          "source_event_uid": "e42",
+          "target_event_uid": "e45",
+          "confidence": 0.89,
+          "lag_seconds": 2.3,
+          "reason": "interface_down → stp_topology_change, same device, L1→L2"
+        }
+      ],
+      "causal_sequences": [
+        {
+          "sequence_id": "SEQ-001",
+          "root_event": "e42",
+          "terminal_event": "e51",
+          "length": 4,
+          "total_confidence": 0.82,
+          "steps": [
+            {"step": 1, "role": "root_cause",      "subtype": "interface_down"},
+            {"step": 2, "role": "propagation",      "subtype": "stp_topology_change"},
+            {"step": 3, "role": "propagation",      "subtype": "bgp_neighbor_down"},
+            {"step": 4, "role": "terminal_effect",  "subtype": "packet_drop"}
+          ]
+        }
+      ],
+      "unlinked_events": ["e48", "e50"]
+    }
+  ]
+}
+```
+
+---
+
+## 8. Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Core Language** | Python | Primary development language |
+| **Data Processing** | Pandas, NumPy | Tabular data manipulation and numerical operations |
+| **Semantic Retrieval** | Sentence Transformers, FAISS | Dense vector embedding and similarity search |
+| **Graph Processing** | NetworkX | Causal DAG construction, traversal, and path finding |
+| **Natural Language Processing** | LangChain | LLM integration framework |
+| **Large Language Models** | Google Gemini, Groq (Llama 3) | Incident summarization and causal reasoning augmentation |
+| **Visualization** | Plotly, Dash | Interactive charts, graphs, and dashboards |
+| **Web Framework** | Streamlit, FastAPI | Interactive UI and REST API |
+| **Storage** | JSON, Vector Indexes | Event data persistence and embedding storage |
+
+---
+
+## 9. Use Cases
+
+### Use Case 1: Automated Post-Incident Analysis
+
+A network operations center (NOC) experiences a major outage affecting campus connectivity. The system ingests logs from all affected switches and routers, reconstructs the incident timeline, identifies that a power supply failure on a core switch triggered a cascade of interface failures, STP reconvergence, and BGP session losses, and generates a comprehensive report within minutes — a task that would take a senior engineer hours.
+
+### Use Case 2: Real-Time Incident Triage
+
+As logs stream in during an active incident, the system provides early root cause hypotheses, allowing NOC engineers to focus remediation efforts on the most probable cause rather than investigating symptoms.
+
+### Use Case 3: Historical Pattern Analysis
+
+By processing historical incident logs, the system identifies recurring failure patterns (e.g., a specific switch model consistently experiencing transceiver failures) and recommends proactive maintenance actions.
+
+### Use Case 4: Compliance and Audit Reporting
+
+Regulatory requirements in financial, healthcare, and government sectors demand detailed incident documentation. The system generates audit-ready reports with complete event timelines, root cause analysis, and remediation recommendations.
+
+### Use Case 5: Multi-Vendor Environment Management
+
+Organizations running mixed-vendor networks (HPE/Aruba switches + Cisco routers + Juniper firewalls) benefit from the system's ability to normalize logs across vendors into a single analytical framework, eliminating the need for vendor-specific analysis tools.
+
+---
+
+## 10. Expected Outcomes
+
+The system provides an end-to-end framework for:
+
+| Outcome | Impact |
+|---------|--------|
+| **Automated log understanding** | Eliminates manual log parsing across vendor formats |
+| **Event normalization** | Creates a single source of truth across multi-vendor environments |
+| **Timeline reconstruction** | Provides accurate, clock-skew-corrected event chronologies |
+| **Causal analysis** | Identifies cause-effect relationships with quantified confidence |
+| **Root cause detection** | Pinpoints initiating triggers, reducing investigation time from hours to minutes |
+| **Causal chain extraction** | Reveals complete propagation paths for understanding failure cascades |
+| **Incident summarization** | Generates natural language explanations accessible to all stakeholders |
+| **Visualization and reporting** | Produces interactive dashboards and formal reports for operations and audit |
+
+By combining retrieval-augmented generation, pattern extraction, graph-based causal reasoning, and large language models, the platform enables faster, more accurate, and more consistent investigation of complex network incidents — reducing mean time to resolution (MTTR) and improving network reliability.
+
+---
+
+## 11. Constraints and Considerations
+
+| Constraint | Description |
+|------------|-------------|
+| **Causality is inferred, not proven** | The system uses heuristic and statistical methods to infer causality from temporal and contextual signals. Results should be validated by domain experts. |
+| **Log completeness** | Analysis quality depends on the completeness of input logs. Missing logs from critical devices may lead to incomplete causal chains. |
+| **Timestamp accuracy** | Clock skew correction improves accuracy but cannot fully compensate for severely unsynchronized devices. |
+| **Scalability bounds** | While designed for sub-quadratic performance, extremely large incident windows (>100,000 events) may require parameter tuning. |
+| **LLM dependency** | Natural language summarization quality depends on LLM availability and capability. Deterministic fallback ensures baseline functionality. |
+| **Vendor coverage** | Initial support focuses on HPE/Aruba AOS-CX with extensible architecture for additional vendors. |
