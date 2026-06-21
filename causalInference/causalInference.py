@@ -272,7 +272,7 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
     
     lag = (tb - ta).total_seconds()
     score, reasons = 0.0, []
-    if lag <= 0:
+    if lag < 0:
         # Backward-time inference for systemic indicators logged slightly late
         if sa in {"radius_failure", "bgp", "ospf"} and lag >= -120:
             lag = abs(lag)  # Treat as positive lag for scoring

@@ -59,16 +59,16 @@ COMPAT_THRESHOLD = 0.40
 
 # Louvain resolution parameter.
 # Higher = more, smaller communities.  Lower = fewer, larger ones.
-LOUVAIN_RESOLUTION = 0.8
+LOUVAIN_RESOLUTION = 0.3
 
 # Domain classification rules — reused from earlier design.
 DOMAIN_RULES = [
     ("hardware", ["power", "psu", "fan", "temperature", "thermal", "hw", "hardware"]),
-    ("physical_link", ["crc", "transceiver", "optic", "sfp", "link down", "off-line", "offline", "port"]),
-    ("stp_topology", ["mstp", "stp", "topology change", "forwarding", "learning"]),
-    ("routing", ["bgp", "ospf", "routing", "neighbor", "peer"]),
+    ("security", ["ssh login failed", "maximum attempts", "security", "bruteforce", "brute force", "radius"]),
     ("authentication", ["802.1x", "mac-auth", "auth", "authentication"]),
-    ("security", ["ssh login failed", "maximum attempts", "security", "bruteforce", "brute force"]),
+    ("routing", ["bgp", "ospf", "routing", "neighbor", "peer"]),
+    ("stp_topology", ["mstp", "stp", "topology change", "forwarding", "learning"]),
+    ("physical_link", ["crc", "transceiver", "optic", "sfp", "link down", "off-line", "offline", "port"]),
     ("configuration", ["configuration changed", "config changed", "config"]),
     ("service", ["ntp", "snmp", "daemon", "vsftpd"]),
     ("inventory", ["lldp", "vlan"]),
@@ -93,8 +93,12 @@ COOCCURRING_SUBTYPES = {
     frozenset({"interface_down", "stp_topology_change"}),
     frozenset({"interface_down", "bgp"}),
     frozenset({"interface_down", "ospf"}),
+    frozenset({"interface_down", "ospf_interface_down"}),
+    frozenset({"interface_down", "ospf_neighbor_down"}),
     frozenset({"stp_topology_change", "bgp"}),
     frozenset({"stp_topology_change", "ospf"}),
+    frozenset({"stp_topology_change", "ospf_interface_down"}),
+    frozenset({"stp_topology_change", "ospf_neighbor_down"}),
     frozenset({"power", "fan"}),
     frozenset({"power", "interface_down"}),
     frozenset({"crc_errors", "interface_down"}),
@@ -102,6 +106,7 @@ COOCCURRING_SUBTYPES = {
     frozenset({"config_change", "ospf"}),
     frozenset({"config_change", "interface_down"}),
     frozenset({"dot1x_failure", "interface_down"}),
+    frozenset({"radius_failure", "dot1x_failure"}),
     frozenset({"bgp", "ospf"}),
     # VXLAN co-occurrences
     frozenset({"tunnel_nexthop_delete", "tunnel_activating"}),
@@ -139,9 +144,16 @@ def normalize_domain(e: Dict[str, Any]) -> str:
 
 
 def extract_port(e: Dict[str, Any]) -> Optional[str]:
+    """Helper to extract physical port identifier if present."""
+    val = e.get("interface_id")
+    if val and str(val) != "<IFACE>":
+        return str(val)
     txt = text_of(e)
-    m = re.search(r"port\s+(\d+/\d+/\d+|\d+)", txt)
-    return m.group(1) if m else e.get("interface_id")
+    # E.g. "port 1/1/2" or "interface 1/1/2"
+    m = re.search(r'\b(?:port|interface)\s+(\d+/\d+/\d+|\d+/\d+|\d+)\b', txt, re.I)
+    if m:
+        return m.group(1)
+    return None
 
 
 def severity_rank(e: Dict[str, Any]) -> int:
@@ -157,18 +169,23 @@ def event_time(e: Dict[str, Any]) -> datetime:
 
 def _normalize_subtype(e: Dict[str, Any]) -> str:
     """Quick subtype normalizer for co-occurrence matching."""
-    txt = text_of(e)
+    txt = text_of(e).lower()
     if "power supply" in txt or "psu" in txt: return "power"
     if "fan" in txt: return "fan"
     if "crc" in txt: return "crc_errors"
-    if "off-line" in txt or "offline" in txt or "link down" in txt: return "interface_down"
-    if "on-line" in txt or "online" in txt or "link up" in txt: return "interface_up"
+    if "off-line" in txt or "offline" in txt or "link down" in txt or "status changed to down" in txt or "state to down" in txt: return "interface_down"
+    if "on-line" in txt or "online" in txt or "link up" in txt or "state to up" in txt: return "interface_up"
     if "topology change" in txt: return "stp_topology_change"
-    if "ospf" in txt: return "ospf"
+    if "ospf" in txt:
+        if "neighbor" in txt and "down" in txt: return "ospf_neighbor_down"
+        if "interface" in txt and "down" in txt: return "ospf_interface_down"
+        if "calculation" in txt or "recalculation" in txt: return "ospf_recalculation"
+        return "ospf"
     if "bgp" in txt: return "bgp"
-    if "configuration changed" in txt: return "config_change"
-    if "ssh login failed" in txt or "maximum attempts" in txt: return "ssh_bruteforce"
+    if "configuration changed" in txt or "configured from console" in txt or "sys-5-config" in txt: return "config_change"
+    if "ssh login failed" in txt or "maximum attempts" in txt or "denied tcp" in txt: return "ssh_bruteforce"
     if "authentication failure for user" in txt: return "admin_auth_failure"
+    if "radius" in txt and ("unreachable" in txt or "failed" in txt or "timeout" in txt): return "radius_failure"
     if "802.1x" in txt and ("failed" in txt or "failure" in txt): return "dot1x_failure"
     if "mac-auth" in txt: return "mac_auth"
     if "transceiver" in txt: return "transceiver"
@@ -232,8 +249,10 @@ def compatibility_score(
     # --------------------------------------------------
     # 1. Topological connection (from inferred topology)
     # --------------------------------------------------
-    if dev_a != "unknown" and dev_b != "unknown" and dev_a != dev_b:
-        if topo.has_edge(dev_a, dev_b):
+    if dev_a != "unknown" and dev_b != "unknown":
+        if dev_a == dev_b:
+            score += 0.50  # Strongest possible topological link
+        elif topo.has_edge(dev_a, dev_b):
             score += 0.40
         elif topo.has_node(dev_a) and topo.has_node(dev_b):
             try:
@@ -242,10 +261,6 @@ def compatibility_score(
                     score += 0.20  # 2-hop connection, weaker
             except nx.NetworkXNoPath:
                 pass
-
-    # Same device is a moderate signal (not as strong as shared identifiers)
-    if dev_a == dev_b and dev_a != "unknown":
-        score += 0.15
 
     # Explicit cross-references in log content
     if shares_explicit_reference(a, b):
@@ -409,11 +424,42 @@ def partition_into_incidents(
     # Handle disconnected components: run Louvain on each connected component
     # separately, since Louvain works best on connected graphs.
     communities = []
+    _NOISE_DOMAINS = {"service", "inventory"}
 
     for component in nx.connected_components(G):
         subgraph = G.subgraph(component)
 
-        if len(component) <= 2:
+        if len(component) == 1:
+            # Gate: info-severity events in benign/noise domains or with
+            # recovery/informational subtypes should NOT become standalone incidents.
+            node = list(component)[0]
+            e = G.nodes[node]
+            sev = SEVERITY_RANK.get(str(e.get("severity", "info")).lower(), 1)
+            dom = e.get("incident_domain", normalize_domain(e))
+            st = _normalize_subtype(e)
+            
+            is_benign_subtype = st in {
+                "snmp", "ntp", "lldp", "vlan", "interface_up",
+                "mac_auth_success", "dot1x_logout", "vtep_operational",
+                "tunnel_operational", "vni_create", "tunnel_nexthop_add",
+            }
+            is_noise_domain = dom in _NOISE_DOMAINS
+            
+            txt = text_of(e)
+            is_status_ok = any(kw in txt for kw in [
+                "status: ok", "logged out", "synchronized", "on-line",
+                "established", "operational", "discovered",
+            ])
+            
+            if sev <= 1 and (is_benign_subtype or is_noise_domain or is_status_ok):
+                print(f"[PARTITION]  ⊘ Suppressing noise singleton: uid={node}, "
+                      f"subtype={st}, severity={e.get('severity')}")
+                continue
+            
+            communities.append(set(component))
+            continue
+            
+        elif len(component) == 2:
             # Small components are trivially one community
             communities.append(set(component))
             continue
@@ -430,11 +476,6 @@ def partition_into_incidents(
             # Fallback: treat entire component as one community
             print(f"[PARTITION]  ⚠ Louvain failed on component of size {len(component)}: {e}")
             communities.append(set(component))
-
-    # Add isolated nodes (no edges) as singleton incidents
-    isolated = set(G.nodes()) - set().union(*communities) if communities else set(G.nodes())
-    for node in isolated:
-        communities.append({node})
 
     print(f"[PARTITION]  ✔ Louvain partitioned {G.number_of_nodes()} events "
           f"into {len(communities)} incident communities "
