@@ -249,10 +249,8 @@ def compatibility_score(
     # --------------------------------------------------
     # 1. Topological connection (from inferred topology)
     # --------------------------------------------------
-    if dev_a != "unknown" and dev_b != "unknown":
-        if dev_a == dev_b:
-            score += 0.50  # Strongest possible topological link
-        elif topo.has_edge(dev_a, dev_b):
+    if dev_a != "unknown" and dev_b != "unknown" and dev_a != dev_b:
+        if topo.has_edge(dev_a, dev_b):
             score += 0.40
         elif topo.has_node(dev_a) and topo.has_node(dev_b):
             try:
@@ -261,6 +259,10 @@ def compatibility_score(
                     score += 0.20  # 2-hop connection, weaker
             except nx.NetworkXNoPath:
                 pass
+
+    # Same device is a moderate signal (not as strong as shared identifiers)
+    if dev_a == dev_b and dev_a != "unknown":
+        score += 0.15
 
     # Explicit cross-references in log content
     if shares_explicit_reference(a, b):
@@ -309,7 +311,12 @@ def compatibility_score(
     # just because they happen within the time window.
     if {"physical_link", "routing"}.issubset({da, db}):
         if not (shares_stp or shares_explicit_reference(a, b) or shares_interface_reference(a, b) or shares_vlan_or_subnet(a, b)):
-            score -= 0.10
+            ta_val, tb_val = event_time(a), event_time(b)
+            lag_val = abs((tb_val - ta_val).total_seconds())
+            if dev_a == dev_b and lag_val <= 5:
+                score += 0.30 # Strong bonus to bind same-device L1->L3 cascades
+            else:
+                score -= 0.10
 
     # --------------------------------------------------
     # 4. Temporal compatibility
@@ -430,32 +437,6 @@ def partition_into_incidents(
         subgraph = G.subgraph(component)
 
         if len(component) == 1:
-            # Gate: info-severity events in benign/noise domains or with
-            # recovery/informational subtypes should NOT become standalone incidents.
-            node = list(component)[0]
-            e = G.nodes[node]
-            sev = SEVERITY_RANK.get(str(e.get("severity", "info")).lower(), 1)
-            dom = e.get("incident_domain", normalize_domain(e))
-            st = _normalize_subtype(e)
-            
-            is_benign_subtype = st in {
-                "snmp", "ntp", "lldp", "vlan", "interface_up",
-                "mac_auth_success", "dot1x_logout", "vtep_operational",
-                "tunnel_operational", "vni_create", "tunnel_nexthop_add",
-            }
-            is_noise_domain = dom in _NOISE_DOMAINS
-            
-            txt = text_of(e)
-            is_status_ok = any(kw in txt for kw in [
-                "status: ok", "logged out", "synchronized", "on-line",
-                "established", "operational", "discovered",
-            ])
-            
-            if sev <= 1 and (is_benign_subtype or is_noise_domain or is_status_ok):
-                print(f"[PARTITION]  ⊘ Suppressing noise singleton: uid={node}, "
-                      f"subtype={st}, severity={e.get('severity')}")
-                continue
-            
             communities.append(set(component))
             continue
             

@@ -255,11 +255,23 @@ def shares_vlan_or_subnet(a: Dict, b: Dict) -> bool:
     if va is not None and vb is not None and va == vb:
         return True
 
+    # Helper to strip syslog IPs (like 110.0.0.2 in router-1's syslog header)
+    def _get_syslog_ip(e: Dict) -> str:
+        import re
+        raw = str(e.get("raw_message", ""))
+        m = re.search(r'^[A-Za-z]{3}\s+[0-9]+\s+[0-9:]+\s+[A-Za-z0-9_-]+\s+([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\s+', raw)
+        return m.group(1) if m else None
+
     # Check subnet overlap
-    ips_a = _extract_ips(a)
-    ips_b = _extract_ips(b)
-    subnets_a = {_ip_to_subnet(ip) for ip in ips_a} - {None}
-    subnets_b = {_ip_to_subnet(ip) for ip in ips_b} - {None}
+    # Exclude the device's own IP to prevent every event on the same device
+    # from artificially matching on its own subnet.
+    exclude_a = {a.get("device_ip"), _get_syslog_ip(a)}
+    exclude_b = {b.get("device_ip"), _get_syslog_ip(b)}
+    ips_a = _extract_ips(a) - exclude_a
+    ips_b = _extract_ips(b) - exclude_b
+    
+    subnets_a = {_ip_to_subnet(ip) for ip in ips_a if ip} - {None}
+    subnets_b = {_ip_to_subnet(ip) for ip in ips_b if ip} - {None}
     return bool(subnets_a & subnets_b)
 
 

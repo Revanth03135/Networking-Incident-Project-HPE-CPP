@@ -339,8 +339,9 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
         "## Probable Initiating Triggers",
     ]
 
-    if roots:
-        for root in roots:
+    valid_roots = [r for r in roots if r.get('score', 0) >= 0]
+    if valid_roots:
+        for root in valid_roots:
             lines.append(
         f"- Incident {root['incident_id']} "
         f"-> {root['subtype']} "
@@ -402,6 +403,19 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
         
         lines.append(f"\n*Duration: {duration}s*\n")
         
+    noise_incidents = causal_summary.get("noise_incidents", [])
+    if noise_incidents:
+        lines.extend([
+            "## Routine & Unlinked Noise",
+            "The following events were classified as non-actionable noise or routine informational activity:",
+            ""
+        ])
+        for inc in noise_incidents:
+            for e in inc.get('events', []):
+                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
+                lines.append(f"- {e.get('device', 'unknown')}: {sub} ({e.get('severity', 'info')}) - {e.get('message', '')}")
+        lines.append("")
+        
     lines.extend([
         "## Confidence and Limitations",
         "- Causality is inferred from temporal and contextual heuristics, not strict proof.",
@@ -424,13 +438,16 @@ def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
     root_causes = []
     affected_devices = set()
 
+    noise_incidents = []
+    
     for incident in timeline_incidents:
 
         # Stage 6 (causal inference) + Stage 7 (validate & split)
         results = analyze_and_validate(incident)
 
         for result in results:
-            if result.get("classification") == "informational" and all(not is_actionable(e) for e in result.get("events", [])):
+            if result.get("classification") == "informational":
+                noise_incidents.append(result)
                 continue
             incident_results.append(result)
 
@@ -461,6 +478,7 @@ def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
         "affected_devices": sorted(list(affected_devices)),
         "root_causes": root_causes,
         "incidents": incident_results,
+        "noise_incidents": noise_incidents,
     }
 
 

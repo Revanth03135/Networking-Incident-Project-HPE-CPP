@@ -303,9 +303,9 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
 
     pairs = {
         # Standard syslog causal chains
-        "power": {"fan", "interface_down", "crc_errors", "thermal"},
+        "power": {"fan", "interface_down", "crc_errors", "thermal", "bgp", "ospf"},
         "fan": {"thermal", "interface_down"},
-        "thermal": {"interface_down"},
+        "thermal": {"interface_down", "bgp", "ospf"},
         "crc_errors": {"interface_down", "stp_topology_change", "ospf", "bgp"},
         "transceiver": {"interface_down", "crc_errors"},
         "interface_down": {"stp_topology_change", "ospf", "ospf_neighbor_down", "bgp", "dot1x_failure",
@@ -508,11 +508,37 @@ def analyze_incident(inc: Dict) -> Dict:
     linked_uids = set(G.nodes()) - set(n for n in G.nodes() if G.degree(n) == 0)
     unrelated = [e.get("event_uid") for e in normalized if e.get("event_uid") not in linked_uids and (not root or e.get("event_uid") != root.get("event_uid"))]
 
+    # Explicit noise filter: if there are no causal links, it's noise UNLESS it's a hardware failure
+    # This prevents isolated auth failures, interface flaps, or CRC warnings from becoming standalone incidents.
+    if not links:
+        has_hardware = any(e.get("normalized_domain") == "hardware" for e in normalized)
+        if not has_hardware:
+            classification = "informational"
+
+    start_time = None
+    end_time = None
+    duration_sec = 0
+    devices = set()
+    if normalized:
+        start_time = get_time(normalized[0])
+        end_time = get_time(normalized[-1])
+        try:
+            duration_sec = abs((parse_dt(end_time) - parse_dt(start_time)).total_seconds())
+        except Exception:
+            pass
+        for e in normalized:
+            if e.get("device"):
+                devices.add(e.get("device"))
+
     return {
         "incident_id": inc.get("incident_id"),
         "incident_type": inc.get("incident_type"),
         "classification": classification,
         "event_count": len(normalized),
+        "start_time": start_time,
+        "end_time": end_time,
+        "duration_sec": duration_sec,
+        "devices": list(devices),
         "events": normalized,
         "root_cause": root,
         "causal_links": links,
@@ -567,13 +593,16 @@ def validate_and_split(inc_result: Dict, original_inc: Dict) -> List[Dict]:
         for rec_e in recovery_events:
             rec_dev = rec_e.get("device")
             rec_port = port(rec_e)
+            rec_time = parse_dt(get_time(rec_e))
             
             # Find the best component for this recovery event
             for fail_e in comp_events:
                 if fail_e.get("device") == rec_dev and port(fail_e) == rec_port:
-                    if rec_e not in comp_events:
-                        comp_events.append(rec_e)
-                    break
+                    fail_time = parse_dt(get_time(fail_e))
+                    if rec_time >= fail_time:
+                        if rec_e not in comp_events:
+                            comp_events.append(rec_e)
+                        break
 
         comp_events.sort(key=lambda e: parse_dt(get_time(e)))
 
