@@ -3,117 +3,121 @@
     "event": {
       "event_uid": 1,
       "event_id": null,
-      "type": "fabric",
-      "subtype": "lldp",
+      "type": "access_control",
+      "subtype": "dot1x_failure",
       "severity": "info",
-      "message": "rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1"
+      "message": "802.1X client 00:11:22:33:44:55 authenticated on port 1/1/10"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
-      "interface_id": null,
+      "interface_id": "1/1/10",
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:01:50+00:00"
+      "event_time": "2026-07-12T09:00:01.101000+00:00",
+      "ingestion_time": "2026-07-12T09:00:01.101000+00:00"
     },
     "raw": {
-      "message": "May 20 09:01:50 router-2 rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1"
+      "message": "2026-07-12T09:00:01.101Z Core-8325-01 hpe-authd: Event|4101|LOG_INFO|SYSTEM|1|802.1X client 00:11:22:33:44:55 authenticated on port 1/1/10"
     }
   },
   {
     "event": {
       "event_uid": 2,
       "event_id": null,
-      "type": "security",
-      "subtype": "authentication",
+      "type": "inventory",
+      "subtype": "lldp",
       "severity": "info",
-      "message": "mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200"
+      "message": "LLDP neighbor discovered on port 1/1/10"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
-      "interface_id": null,
+      "interface_id": "1/1/10",
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:18:00+00:00"
+      "event_time": "2026-07-12T09:00:03.211000+00:00",
+      "ingestion_time": "2026-07-12T09:00:03.211000+00:00"
     },
     "raw": {
-      "message": "May 20 09:18:00 router-2 mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200"
+      "message": "2026-07-12T09:00:03.211Z Core-8325-01 lldpd: Event|3101|LOG_INFO|SYSTEM|1|LLDP neighbor discovered on port 1/1/10"
     }
   },
   {
     "event": {
       "event_uid": 3,
       "event_id": null,
-      "type": "routing",
-      "subtype": "bgp",
-      "severity": "warning",
-      "message": "rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active"
+      "type": "inventory",
+      "subtype": "vlan",
+      "severity": "info",
+      "message": "VLAN 100 created"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
       "interface_id": null,
-      "vlan": null
+      "vlan": "100"
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:27:30+00:00"
+      "event_time": "2026-07-12T09:01:15.341000+00:00",
+      "ingestion_time": "2026-07-12T09:01:15.341000+00:00"
     },
     "raw": {
-      "message": "May 20 09:27:30 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active"
+      "message": "2026-07-12T09:01:15.341Z Core-8325-01 hpe-vlan: Event|2201|LOG_INFO|SYSTEM|1|VLAN 100 created"
     }
   },
   {
     "event": {
       "event_uid": 4,
       "event_id": null,
-      "type": "routing",
-      "subtype": "ospf",
-      "severity": "warning",
-      "message": "rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down"
+      "type": "physical_link",
+      "subtype": "transceiver",
+      "severity": "info",
+      "message": "Transceiver on port 1/1/24 removed or signal lost"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
-      "interface_id": null,
+      "interface_id": "1/1/24",
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:28:10+00:00"
+      "event_time": "2026-07-12T09:05:12.500000+00:00",
+      "ingestion_time": "2026-07-12T09:05:12.500000+00:00"
     },
     "raw": {
-      "message": "May 20 09:28:10 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down"
+      "message": "2026-07-12T09:05:12.500Z Dist-6300-01 hpe-cardd: Event|1105|LOG_INFO|MEMBER|1|Transceiver on port 1/1/24 removed or signal lost"
     }
   },
   {
     "event": {
       "event_uid": 5,
       "event_id": null,
-      "type": "routing",
-      "subtype": "bgp",
-      "severity": "warning",
-      "message": "rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired"
+      "type": "physical_link",
+      "subtype": "interface_down",
+      "severity": "info",
+      "message": "Link down on interface 1/1/24"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -123,23 +127,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:38:12+00:00"
+      "event_time": "2026-07-12T09:05:12.502000+00:00",
+      "ingestion_time": "2026-07-12T09:05:12.502000+00:00"
     },
     "raw": {
-      "message": "May 20 09:38:12 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired"
+      "message": "2026-07-12T09:05:12.502Z Dist-6300-01 portd: Event|2602|LOG_INFO|MEMBER|1|Link down on interface 1/1/24"
     }
   },
   {
     "event": {
       "event_uid": 6,
       "event_id": null,
-      "type": "system",
-      "subtype": "power",
+      "type": "log",
+      "subtype": "raw",
       "severity": "info",
-      "message": "chassisd[330]: [chassis.info] Power supply 1 status: ok"
+      "message": "Interface 1/1/24 operational status changed to DOWN"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -149,23 +154,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:40:00+00:00"
+      "event_time": "2026-07-12T09:05:12.504000+00:00",
+      "ingestion_time": "2026-07-12T09:05:12.504000+00:00"
     },
     "raw": {
-      "message": "May 20 09:40:00 router-2 chassisd[330]: [chassis.info] Power supply 1 status: ok"
+      "message": "2026-07-12T09:05:12.504Z Dist-6300-01 ops-init: Event|1203|LOG_INFO|MEMBER|1|Interface 1/1/24 operational status changed to DOWN"
     }
   },
   {
     "event": {
       "event_uid": 7,
       "event_id": null,
-      "type": "routing",
-      "subtype": "bgp",
-      "severity": "warning",
-      "message": "rpd[1190]: [daemon.info] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Idle to Established"
+      "type": "physical_link",
+      "subtype": "interface_down",
+      "severity": "info",
+      "message": "OSPFv2: Interface 1/1/24 state changed from PtP to Down"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -175,10 +181,11 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:51:15+00:00"
+      "event_time": "2026-07-12T09:05:12.507000+00:00",
+      "ingestion_time": "2026-07-12T09:05:12.507000+00:00"
     },
     "raw": {
-      "message": "May 20 09:51:15 router-2 rpd[1190]: [daemon.info] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Idle to Established"
+      "message": "2026-07-12T09:05:12.507Z Dist-6300-01 hpe-routing: Event|5223|LOG_INFO|MEMBER|1|OSPFv2: Interface 1/1/24 state changed from PtP to Down"
     }
   },
   {
@@ -187,11 +194,11 @@
       "event_id": null,
       "type": "routing",
       "subtype": "ospf",
-      "severity": "info",
-      "message": "rpd[1190]: [daemon.info] RPD_OSPF_NBRUP: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Down to Full"
+      "severity": "warning",
+      "message": "OSPFv2: Neighbor 10.254.1.2 state changed from Full to Down, Reason: Interface Down"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -201,23 +208,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:55:20+00:00"
+      "event_time": "2026-07-12T09:05:12.510000+00:00",
+      "ingestion_time": "2026-07-12T09:05:12.510000+00:00"
     },
     "raw": {
-      "message": "May 20 09:55:20 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRUP: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Down to Full"
+      "message": "2026-07-12T09:05:12.510Z Dist-6300-01 hpe-routing: Event|5221|LOG_WARN|MEMBER|1|OSPFv2: Neighbor 10.254.1.2 state changed from Full to Down, Reason: Interface Down"
     }
   },
   {
     "event": {
       "event_uid": 9,
       "event_id": null,
-      "type": "system",
-      "subtype": "temperature",
-      "severity": "warning",
-      "message": "chassisd[330]: [hw.warn] Temperature sensor 1 reading elevated: 52C (threshold 65C)"
+      "type": "routing",
+      "subtype": "ospf",
+      "severity": "info",
+      "message": "OSPF route calculation started"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -227,23 +235,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T10:10:00+00:00"
+      "event_time": "2026-07-12T09:05:12.514000+00:00",
+      "ingestion_time": "2026-07-12T09:05:12.514000+00:00"
     },
     "raw": {
-      "message": "May 20 10:10:00 router-2 chassisd[330]: [hw.warn] Temperature sensor 1 reading elevated: 52C (threshold 65C)"
+      "message": "2026-07-12T09:05:12.514Z Dist-6300-01 hpe-routing: Event|5204|LOG_INFO|MEMBER|1|OSPF route calculation started"
     }
   },
   {
     "event": {
       "event_uid": 10,
       "event_id": null,
-      "type": "security",
-      "subtype": "authentication",
+      "type": "routing",
+      "subtype": "ospf",
       "severity": "info",
-      "message": "mgd[455]: [mgmt.notice] User admin logged out"
+      "message": "OSPF route calculation completed"
     },
     "device": {
-      "hostname": "router-2",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -253,128 +262,25 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T10:20:00+00:00"
+      "event_time": "2026-07-12T09:05:12.517000+00:00",
+      "ingestion_time": "2026-07-12T09:05:12.517000+00:00"
     },
     "raw": {
-      "message": "May 20 10:20:00 router-2 mgd[455]: [mgmt.notice] User admin logged out"
+      "message": "2026-07-12T09:05:12.517Z Dist-6300-01 hpe-routing: Event|5205|LOG_INFO|MEMBER|1|OSPF route calculation completed"
     }
   },
   {
     "event": {
-      "event_uid": 1,
-      "event_id": null,
-      "type": "fabric",
-      "subtype": "lldp",
-      "severity": "info",
-      "message": "lldp_neighbor_discovered"
-    },
-    "device": {
-      "hostname": "router-2",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-05-20T09:01:50"
-    },
-    "raw": {
-      "message": "May 20 09:01:50 router-2 rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 1,
-      "event_id": null,
-      "type": "interface",
-      "subtype": "interface",
-      "severity": "info",
-      "message": "interface_discovered"
-    },
-    "device": {
-      "hostname": "router-2",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": "ge-0/0/1",
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-05-20T09:01:50"
-    },
-    "raw": {
-      "message": "May 20 09:01:50 router-2 rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 2,
-      "event_id": null,
-      "type": "security",
-      "subtype": "authentication",
-      "severity": "info",
-      "message": "authentication_login"
-    },
-    "device": {
-      "hostname": "router-2",
-      "ip": "192.168.1.200",
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-05-20T09:18:00"
-    },
-    "raw": {
-      "message": "May 20 09:18:00 router-2 mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 2,
-      "event_id": null,
-      "type": "security",
-      "subtype": "authentication",
-      "severity": "info",
-      "message": "authentication_login"
-    },
-    "device": {
-      "hostname": "router-2",
-      "ip": "192.168.1.200",
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-05-20T09:18:00"
-    },
-    "raw": {
-      "message": "May 20 09:18:00 router-2 mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 3,
+      "event_uid": 11,
       "event_id": null,
       "type": "routing",
       "subtype": "bgp",
       "severity": "warning",
-      "message": "bgp_neighbor_changed"
+      "message": "BGP peer 10.10.10.1 session lost"
     },
     "device": {
-      "hostname": "router-2",
-      "ip": "192.168.1.2",
+      "hostname": "Dist-6300-01",
+      "ip": null,
       "vendor": "unknown",
       "os": null
     },
@@ -383,24 +289,25 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:27:30"
+      "event_time": "2026-07-12T09:05:16.110000+00:00",
+      "ingestion_time": "2026-07-12T09:05:16.110000+00:00"
     },
     "raw": {
-      "message": "May 20 09:27:30 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active"
+      "message": "2026-07-12T09:05:16.110Z Dist-6300-01 hpe-routing: Event|6101|LOG_WARN|MEMBER|1|BGP peer 10.10.10.1 session lost"
     }
   },
   {
     "event": {
-      "event_uid": 3,
+      "event_uid": 12,
       "event_id": null,
       "type": "routing",
       "subtype": "bgp",
-      "severity": "warning",
-      "message": "bgp_neighbor_changed"
+      "severity": "info",
+      "message": "BGP route withdrawal initiated"
     },
     "device": {
-      "hostname": "router-2",
-      "ip": "192.168.1.2",
+      "hostname": "Dist-6300-01",
+      "ip": null,
       "vendor": "unknown",
       "os": null
     },
@@ -409,76 +316,484 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:27:30"
+      "event_time": "2026-07-12T09:05:18.005000+00:00",
+      "ingestion_time": "2026-07-12T09:05:18.005000+00:00"
     },
     "raw": {
-      "message": "May 20 09:27:30 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active"
+      "message": "2026-07-12T09:05:18.005Z Dist-6300-01 hpe-routing: Event|6102|LOG_INFO|MEMBER|1|BGP route withdrawal initiated"
     }
   },
   {
     "event": {
-      "event_uid": 4,
+      "event_uid": 13,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "info",
+      "message": "BGP route withdrawal completed"
+    },
+    "device": {
+      "hostname": "Dist-6300-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:05:21.114000+00:00",
+      "ingestion_time": "2026-07-12T09:05:21.114000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:05:21.114Z Dist-6300-01 hpe-routing: Event|6103|LOG_INFO|MEMBER|1|BGP route withdrawal completed"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 14,
+      "event_id": null,
+      "type": "access_control",
+      "subtype": "dot1x_failure",
+      "severity": "error",
+      "message": "802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5"
+    },
+    "device": {
+      "hostname": "Access-6100-04",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": "1/1/5",
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:10:02.118000+00:00",
+      "ingestion_time": "2026-07-12T09:10:02.118000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:10:02.118Z Access-6100-04 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 15,
+      "event_id": null,
+      "type": "access_control",
+      "subtype": "dot1x_failure",
+      "severity": "error",
+      "message": "802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5"
+    },
+    "device": {
+      "hostname": "Access-6100-04",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": "1/1/5",
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:10:04.002000+00:00",
+      "ingestion_time": "2026-07-12T09:10:04.002000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:10:04.002Z Access-6100-04 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 16,
+      "event_id": null,
+      "type": "access_control",
+      "subtype": "dot1x_failure",
+      "severity": "error",
+      "message": "802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5"
+    },
+    "device": {
+      "hostname": "Access-6100-04",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": "1/1/5",
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:10:06.015000+00:00",
+      "ingestion_time": "2026-07-12T09:10:06.015000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:10:06.015Z Access-6100-04 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 17,
+      "event_id": null,
+      "type": "log",
+      "subtype": "raw",
+      "severity": "warning",
+      "message": "Port 1/1/5 temporarily blocked due to authentication failures"
+    },
+    "device": {
+      "hostname": "Access-6100-04",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": "1/1/5",
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:10:08.101000+00:00",
+      "ingestion_time": "2026-07-12T09:10:08.101000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:10:08.101Z Access-6100-04 hpe-security: Event|7105|LOG_WARN|MEMBER|1|Port 1/1/5 temporarily blocked due to authentication failures"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 18,
+      "event_id": null,
+      "type": "hardware",
+      "subtype": "power",
+      "severity": "critical",
+      "message": "Power supply PSU-2 failure detected"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:15:11.117000+00:00",
+      "ingestion_time": "2026-07-12T09:15:11.117000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:15:11.117Z Core-8325-01 hpe-ptm: Event|7101|LOG_CRITICAL|CHASSIS|1|Power supply PSU-2 failure detected"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 19,
+      "event_id": null,
+      "type": "hardware",
+      "subtype": "fan",
+      "severity": "warning",
+      "message": "Fan tray 1 speed out of normal range"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:15:15.221000+00:00",
+      "ingestion_time": "2026-07-12T09:15:15.221000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:15:15.221Z Core-8325-01 hpe-thermal: Event|7202|LOG_WARN|CHASSIS|1|Fan tray 1 speed out of normal range"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 20,
+      "event_id": null,
+      "type": "hardware",
+      "subtype": "thermal",
+      "severity": "warning",
+      "message": "Internal temperature exceeded warning threshold"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:15:21.332000+00:00",
+      "ingestion_time": "2026-07-12T09:15:21.332000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:15:21.332Z Core-8325-01 hpe-thermal: Event|7204|LOG_WARN|CHASSIS|1|Internal temperature exceeded warning threshold"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 21,
+      "event_id": null,
+      "type": "hardware",
+      "subtype": "thermal",
+      "severity": "warning",
+      "message": "System entered thermal protection mode"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:15:25.550000+00:00",
+      "ingestion_time": "2026-07-12T09:15:25.550000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:15:25.550Z Core-8325-01 hpe-system: Event|7301|LOG_WARN|CHASSIS|1|System entered thermal protection mode"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 22,
+      "event_id": null,
+      "type": "security",
+      "subtype": "ssh_bruteforce",
+      "severity": "warning",
+      "message": "SSH login failed from 203.0.113.25"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:18:10.115000+00:00",
+      "ingestion_time": "2026-07-12T09:18:10.115000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:18:10.115Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.25"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 23,
+      "event_id": null,
+      "type": "security",
+      "subtype": "ssh_bruteforce",
+      "severity": "warning",
+      "message": "SSH login failed from 203.0.113.25"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:18:12.331000+00:00",
+      "ingestion_time": "2026-07-12T09:18:12.331000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:18:12.331Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.25"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 24,
+      "event_id": null,
+      "type": "security",
+      "subtype": "ssh_bruteforce",
+      "severity": "warning",
+      "message": "SSH login failed from 203.0.113.25"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:18:14.881000+00:00",
+      "ingestion_time": "2026-07-12T09:18:14.881000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:18:14.881Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.25"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 25,
+      "event_id": null,
+      "type": "security",
+      "subtype": "ssh_bruteforce",
+      "severity": "critical",
+      "message": "SSH source 203.0.113.25 blocked after maximum failed attempts"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:18:16.110000+00:00",
+      "ingestion_time": "2026-07-12T09:18:16.110000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:18:16.110Z Core-8325-01 hpe-security: Event|9005|LOG_CRITICAL|SYSTEM|1|SSH source 203.0.113.25 blocked after maximum failed attempts"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 26,
+      "event_id": null,
+      "type": "physical_link",
+      "subtype": "transceiver",
+      "severity": "info",
+      "message": "Transceiver inserted on port 1/1/24"
+    },
+    "device": {
+      "hostname": "Dist-6300-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": "1/1/24",
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:22:00.117000+00:00",
+      "ingestion_time": "2026-07-12T09:22:00.117000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:22:00.117Z Dist-6300-01 hpe-cardd: Event|1110|LOG_INFO|MEMBER|1|Transceiver inserted on port 1/1/24"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 27,
+      "event_id": null,
+      "type": "physical_link",
+      "subtype": "interface_up",
+      "severity": "info",
+      "message": "Link up on interface 1/1/24"
+    },
+    "device": {
+      "hostname": "Dist-6300-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:22:00.121000+00:00",
+      "ingestion_time": "2026-07-12T09:22:00.121000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:22:00.121Z Dist-6300-01 portd: Event|2601|LOG_INFO|MEMBER|1|Link up on interface 1/1/24"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 28,
+      "event_id": null,
+      "type": "log",
+      "subtype": "raw",
+      "severity": "info",
+      "message": "Interface 1/1/24 operational status changed to UP"
+    },
+    "device": {
+      "hostname": "Dist-6300-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:22:00.124000+00:00",
+      "ingestion_time": "2026-07-12T09:22:00.124000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:22:00.124Z Dist-6300-01 ops-init: Event|1204|LOG_INFO|MEMBER|1|Interface 1/1/24 operational status changed to UP"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 29,
+      "event_id": null,
+      "type": "physical_link",
+      "subtype": "interface_up",
+      "severity": "info",
+      "message": "OSPFv2: Interface 1/1/24 state changed from Down to PtP"
+    },
+    "device": {
+      "hostname": "Dist-6300-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:22:00.127000+00:00",
+      "ingestion_time": "2026-07-12T09:22:00.127000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:22:00.127Z Dist-6300-01 hpe-routing: Event|5224|LOG_INFO|MEMBER|1|OSPFv2: Interface 1/1/24 state changed from Down to PtP"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 30,
       "event_id": null,
       "type": "routing",
       "subtype": "ospf",
-      "severity": "warning",
-      "message": "ospf_neighbor_down"
+      "severity": "info",
+      "message": "OSPFv2: Neighbor 10.254.1.2 state changed from Down to Full"
     },
     "device": {
-      "hostname": "router-2",
-      "ip": "192.168.3.1",
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": "ge-0/0/2.0",
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-05-20T09:28:10"
-    },
-    "raw": {
-      "message": "May 20 09:28:10 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 4,
-      "event_id": null,
-      "type": "routing",
-      "subtype": "ospf",
-      "severity": "warning",
-      "message": "ospf_neighbor_down"
-    },
-    "device": {
-      "hostname": "router-2",
-      "ip": "192.168.3.1",
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": "ge-0/0/2.0",
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-05-20T09:28:10"
-    },
-    "raw": {
-      "message": "May 20 09:28:10 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 5,
-      "event_id": null,
-      "type": "routing",
-      "subtype": "bgp",
-      "severity": "warning",
-      "message": "bgp_neighbor_changed"
-    },
-    "device": {
-      "hostname": "router-2",
-      "ip": "192.168.1.10",
+      "hostname": "Dist-6300-01",
+      "ip": null,
       "vendor": "unknown",
       "os": null
     },
@@ -487,24 +802,25 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:38:12"
+      "event_time": "2026-07-12T09:22:02.005000+00:00",
+      "ingestion_time": "2026-07-12T09:22:02.005000+00:00"
     },
     "raw": {
-      "message": "May 20 09:38:12 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired"
+      "message": "2026-07-12T09:22:02.005Z Dist-6300-01 hpe-routing: Event|5222|LOG_INFO|MEMBER|1|OSPFv2: Neighbor 10.254.1.2 state changed from Down to Full"
     }
   },
   {
     "event": {
-      "event_uid": 5,
+      "event_uid": 31,
       "event_id": null,
       "type": "routing",
       "subtype": "bgp",
-      "severity": "warning",
-      "message": "bgp_neighbor_changed"
+      "severity": "info",
+      "message": "BGP peer 10.10.10.1 session established"
     },
     "device": {
-      "hostname": "router-2",
-      "ip": "192.168.1.10",
+      "hostname": "Dist-6300-01",
+      "ip": null,
       "vendor": "unknown",
       "os": null
     },
@@ -513,10 +829,92 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-05-20T09:38:12"
+      "event_time": "2026-07-12T09:22:03.771000+00:00",
+      "ingestion_time": "2026-07-12T09:22:03.771000+00:00"
     },
     "raw": {
-      "message": "May 20 09:38:12 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired"
+      "message": "2026-07-12T09:22:03.771Z Dist-6300-01 hpe-routing: Event|6104|LOG_INFO|MEMBER|1|BGP peer 10.10.10.1 session established"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 32,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "info",
+      "message": "BGP routes successfully relearned"
+    },
+    "device": {
+      "hostname": "Dist-6300-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:22:06.001000+00:00",
+      "ingestion_time": "2026-07-12T09:22:06.001000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:22:06.001Z Dist-6300-01 hpe-routing: Event|6105|LOG_INFO|MEMBER|1|BGP routes successfully relearned"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 33,
+      "event_id": null,
+      "type": "service",
+      "subtype": "ntp",
+      "severity": "info",
+      "message": "NTP synchronized with time source 192.168.1.1"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:25:15.220000+00:00",
+      "ingestion_time": "2026-07-12T09:25:15.220000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:25:15.220Z Core-8325-01 ntpd: Event|1001|LOG_INFO|SYSTEM|1|NTP synchronized with time source 192.168.1.1"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 34,
+      "event_id": null,
+      "type": "configuration",
+      "subtype": "config_change",
+      "severity": "info",
+      "message": "Configuration saved by user admin"
+    },
+    "device": {
+      "hostname": "Core-8325-01",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-07-12T09:25:18.991000+00:00",
+      "ingestion_time": "2026-07-12T09:25:18.991000+00:00"
+    },
+    "raw": {
+      "message": "2026-07-12T09:25:18.991Z Core-8325-01 hpe-config: Event|8101|LOG_INFO|SYSTEM|1|Configuration saved by user admin"
     }
   }
 ]

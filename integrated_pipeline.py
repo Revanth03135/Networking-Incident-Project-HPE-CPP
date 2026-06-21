@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 
 from dotenv import load_dotenv
 
-from causalInference.causalInference import analyze_incident, analyze_and_validate
+from causalInference.causalInference import analyze_incident, analyze_and_validate, is_actionable
 from preprocessing import (
     json_serializable,
     restore_datetime_fields,
@@ -188,14 +188,9 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
 
                     # --- Extract core message (strip syslog header) ---
                     core_msg = chunk
-                    # Try to strip "May 14 14:02:11 hostname process[pid]: [fac.sev] " prefix
-                    m_core = _re.match(
-                        r'^(?:[A-Z][a-z]{2}\s+\d+\s+\d{2}:\d{2}:\d{2})\s+\S+\s+'
-                        r'(?:\S+(?:\[\d+\])?:\s*)?(?:\[[^\]]*\]\s*)?(.+)$',
-                        chunk
-                    )
-                    if m_core:
-                        core_msg = m_core.group(1).strip()
+                    m_syslog = _re.search(r'^(?:[A-Z][a-z]{2}\s+\d+\s+\d+:\d+:\d+\s+)?[\w\.-]+(?:\s+[\w\.-]+)?(?:\[\d+\]|\s+\d+)?:\s+', chunk)
+                    if m_syslog:
+                        core_msg = chunk[m_syslog.end():]
 
                     raw_event = {
                         "event": {
@@ -358,18 +353,56 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
         "",
         "## Incident Overview",
     ])
+    causal_incidents = causal_summary.get("incidents", [])
+    report_incidents = causal_incidents if causal_incidents else timeline_incidents
 
-    for inc in timeline_incidents:
+    for inc in report_incidents:
         root = inc.get("root_cause") or {}
+        # Derive primary_issue from root cause subtype, then incident_type, then domain
+        primary_issue = inc.get('summary', {}).get('primary_issue')
+        if not primary_issue or primary_issue == 'unknown':
+            primary_issue = root.get('normalized_subtype') or root.get('subtype')
+        if not primary_issue or primary_issue == 'raw':
+            primary_issue = inc.get('incident_type') or inc.get('classification', 'unclassified')
         lines.append(
             "- "
-            f"{inc.get('incident_id', 'N/A')}: events={len(inc.get('events', []))}, "
+            f"{inc.get('incident_id', 'N/A')}: events={inc.get('event_count', len(inc.get('events', [])))}, "
             f"duration={inc.get('duration_sec', 0)}s, "
-            f"primary_issue={inc.get('summary', {}).get('primary_issue', root.get('subtype', 'unknown'))}"
+            f"primary_issue={primary_issue}"
         )
 
     lines.extend([
         "",
+        "## Detailed Incident Chains",
+    ])
+    
+    for inc in report_incidents:
+        iid = inc.get('incident_id', 'N/A')
+        duration = inc.get('duration_sec', 0)
+        events = inc.get('events', [])
+        failures = [e for e in events if not e.get('is_recovery')]
+        recoveries = [e for e in events if e.get('is_recovery')]
+        
+        if not failures and not recoveries: continue
+            
+        lines.append(f"### {iid}")
+        
+        if failures:
+            lines.append("**Failure Sequence:**")
+            for e in failures:
+                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
+                lines.append(f"- {sub} ({e.get('severity', 'info')})")
+        
+        if recoveries:
+            lines.append("")
+            lines.append("**Recovery Sequence:**")
+            for e in recoveries:
+                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
+                lines.append(f"- {sub} ({e.get('severity', 'info')})")
+        
+        lines.append(f"\n*Duration: {duration}s*\n")
+        
+    lines.extend([
         "## Confidence and Limitations",
         "- Causality is inferred from temporal and contextual heuristics, not strict proof.",
         "- Confidence increases when links have strong timing, device/interface alignment, and severity progression.",
@@ -397,6 +430,8 @@ def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
         results = analyze_and_validate(incident)
 
         for result in results:
+            if result.get("classification") == "informational" and all(not is_actionable(e) for e in result.get("events", [])):
+                continue
             incident_results.append(result)
 
             total_links += len(result.get("causal_links", []))

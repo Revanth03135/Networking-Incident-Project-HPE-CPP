@@ -15,17 +15,17 @@ from typing import Any, Dict, List, Optional, Tuple
 import networkx as nx
 
 SEV = {"debug": 0, "info": 1, "notice": 1, "warning": 2, "warn": 2, "error": 3, "err": 3, "critical": 4, "crit": 4}
-BENIGN = {"snmp", "ntp", "vlan", "lldp", "transceiver", "interface_up", "mac_auth_success", "dot1x_logout",
+BENIGN = {"snmp", "ntp", "vlan", "lldp", "interface_up", "mac_auth_success", "dot1x_logout",
           "vtep_operational", "tunnel_operational", "vni_create", "vxlan_interface", "tunnel_nexthop_add"}
-ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change", "tunnel_nexthop_delete", "power", "fan", "crc_errors", "interface_down", "radius_failure"}
+ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change", "tunnel_nexthop_delete", "power", "fan", "crc_errors", "interface_down", "radius_failure", "transceiver"}
 
 # BASE scores reflect the causal weight of each event type.
 # Hardware/Physical failures score highest. VXLAN/tunnel events are Layer 2/3 overlay.
 BASE = {
     # --- Layer 0: Hardware ---
-    "power": 130, "fan": 110,
+    "power": 130, "fan": 110, "thermal": 105,
     # --- Layer 1: Physical Link ---
-    "crc_errors": 120, "interface_down": 115, "transceiver": 70,
+    "transceiver": 125, "crc_errors": 120, "interface_down": 115,
     # --- Layer 2: Switching / Topology / VXLAN Overlay ---
     "stp_topology_change": 85, "vlan": 20, "lldp": 18,
     "mac_auth_success": 5, "dot1x_failure": 30, "dot1x_logout": 5,
@@ -47,13 +47,13 @@ BASE = {
 
 # LAYER maps each subtype to its OSI-ish tier.
 LAYER = {
-    "power": 0, "fan": 0,
+    "power": 0, "fan": 0, "thermal": 0,
     "crc_errors": 1, "interface_down": 1,
     "interface_up": 1, "transceiver": 1,
     "stp_topology_change": 2, "vlan": 2, "lldp": 2,
     "mac_auth_success": 2, "dot1x_failure": 2,
     "vni_create": 2, "vxlan_interface": 2, "vtep_operational": 2, "vtep_down": 2,
-    "ospf": 3, "bgp": 3, "config_change": 3,
+    "ospf": 3, "ospf_neighbor_down": 3, "bgp": 3, "config_change": 3,
     "tunnel_nexthop_delete": 3, "tunnel_nexthop_add": 3,
     "tunnel_activating": 3, "tunnel_operational": 3,
     "ssh_bruteforce": 4, "admin_auth_failure": 4,
@@ -63,12 +63,14 @@ LAYER = {
 DOMAIN_TIER = {
     "power": "Layer 0 - Hardware",
     "fan": "Layer 0 - Hardware",
+    "thermal": "Layer 0 - Hardware",
     "crc_errors": "Layer 1 - Physical",
     "interface_down": "Layer 1 - Physical",
     "interface_up": "Layer 1 - Physical",
     "transceiver": "Layer 1 - Physical",
     "stp_topology_change": "Layer 2 - Switching",
-    "vlan": "Layer 2 - Switching",
+    "ospf": "Layer 3 - Routing",
+    "ospf_neighbor_down": "Layer 3 - Routing", "vlan": "Layer 2 - Switching",
     "lldp": "Layer 2 - Switching",
     "mac_auth_success": "Layer 2 - Switching",
     "dot1x_failure": "Layer 2 - Switching",
@@ -90,10 +92,10 @@ DOMAIN_TIER = {
     "ntp": "Layer 4 - Management",
 }
 
-RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan", "power", "ntp",
+RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan", "power", "ntp", "transceiver",
                    "tunnel_operational", "vtep_operational", "tunnel_nexthop_add"}
 RECOVERY_KEYWORDS = {"established", "up", "on-line", "online", "restored", "synchronized",
-                     "forwarding", "operational", "activating"}
+                     "forwarding", "operational", "activating", "inserted", "full", "ptp", "relearned"}
 
 
 def n(v) -> str:
@@ -121,14 +123,16 @@ def subtype(e):
     if "power supply" in s or "psu" in s: return "power"
     if "fan" in s: return "fan"
     if "crc" in s: return "crc_errors"
-    if "off-line" in s or "offline" in s or "link down" in s: return "interface_down"
-    if "on-line" in s or "online" in s or "link up" in s: return "interface_up"
+    if "off-line" in s or "offline" in s or "link down" in s or "state to down" in s: return "interface_down"
+    if "on-line" in s or "online" in s or "link up" in s or "state to up" in s: return "interface_up"
     if "topology change" in s: return "stp_topology_change"
-    if "ospf" in s: return "ospf"
+    if "ospf" in s: 
+        if "neighbor down" in s or "to down" in s: return "ospf_neighbor_down"
+        return "ospf"
     if "bgp" in s: return "bgp"
-    if "configuration changed" in s: return "config_change"
-    if "ssh login failed" in s or "maximum attempts" in s: return "ssh_bruteforce"
-    if "authentication failure for user" in s: return "admin_auth_failure"
+    if "configuration changed" in s or "sys-5-config" in s: return "config_change"
+    if "ssh login failed" in s or "maximum attempts" in s or "denied tcp" in s: return "ssh_bruteforce"
+    if "authentication failure for user" in s or "snmp-3-authfail" in s: return "admin_auth_failure"
     if "802.1x" in s and ("failed" in s or "failure" in s): return "dot1x_failure"
     if "802.1x" in s and "logged out" in s: return "dot1x_logout"
     if "radius" in s and ("unreachable" in s or "timeout" in s or "dead" in s): return "radius_failure"
@@ -170,8 +174,10 @@ def port(e):
 def is_recovery(e):
     st = subtype(e)
     s = text(e)
-    if st in RECOVERY_EVENTS and any(kw in s for kw in RECOVERY_KEYWORDS):
-        return True
+    if st in RECOVERY_EVENTS:
+        for kw in RECOVERY_KEYWORDS:
+            if re.search(r'\b' + re.escape(kw) + r'\b', s):
+                return True
     return False
 
 
@@ -220,7 +226,7 @@ def root_score(e, idx, total):
     # --- Keyword boosts (only for infra events to avoid inflating auth noise) ---
     if st in _INFRA_CRITICAL or st in _ROUTING_CRITICAL:
         if "failure" in s or "failed" in s: score += 15
-        if "down" in s or "off-line" in s or "offline" in s: score += 15
+        if "down" in s or "off-line" in s or "offline" in s or "removed" in s or "lost" in s: score += 15
         if "crc" in s or "error" in s: score += 12
 
     # --- Penalise benign/informational events ---
@@ -238,6 +244,14 @@ def root_score(e, idx, total):
     # --- Small early-in-timeline bonus (root causes appear first) ---
     score += max(0, total - idx) * 0.3
 
+    ev_type = n(e.get("type"))
+    if ev_type in ["configuration"]:
+        score -= 0.4
+    
+    # Penalize purely informational events
+    if "info" in e.get("severity", "").lower():
+        score -= 0.3
+
     return round(score, 2)
 
 def is_actionable(e):
@@ -249,10 +263,7 @@ def is_actionable(e):
         return False
     return sev >= 2 or st in ACTIONABLE_LOW_OK
 
-def is_recovery(e):
-    s = text(e)
-    if "topology converged" in s: return True
-    return subtype(e) in {"interface_up", "mac_auth_success"} or "established" in s or "from DOWN to FULL" in s
+
 
 
 def relation(a, b) -> Tuple[float, Optional[str]]:
@@ -292,15 +303,19 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
 
     pairs = {
         # Standard syslog causal chains
-        "power": {"fan", "interface_down", "crc_errors"},
+        "power": {"fan", "interface_down", "crc_errors", "thermal"},
+        "fan": {"thermal", "interface_down"},
+        "thermal": {"interface_down"},
         "crc_errors": {"interface_down", "stp_topology_change", "ospf", "bgp"},
-        "interface_down": {"stp_topology_change", "ospf", "bgp", "dot1x_failure",
+        "transceiver": {"interface_down", "crc_errors"},
+        "interface_down": {"stp_topology_change", "ospf", "ospf_neighbor_down", "bgp", "dot1x_failure",
                            "tunnel_nexthop_delete", "vtep_down"},
-        "stp_topology_change": {"ospf", "bgp", "interface_down"},
-        "config_change": {"interface_down", "stp_topology_change", "ospf", "bgp", "dot1x_failure"},
-        "authentication": {"config_change", "bgp", "ospf", "interface_down", "stp_topology_change"},
-        "bgp": {"ospf"},
+        "stp_topology_change": {"ospf", "ospf_neighbor_down", "bgp", "interface_down"},
+        "config_change": {"interface_down", "stp_topology_change", "ospf", "ospf_neighbor_down", "bgp", "dot1x_failure"},
+        "authentication": {"config_change", "bgp", "ospf", "ospf_neighbor_down", "interface_down", "stp_topology_change"},
+        "bgp": {"ospf", "ospf_neighbor_down"},
         "ospf": {"bgp"},
+        "ospf_neighbor_down": {"ospf", "bgp"},
         "admin_auth_failure": {"ssh_bruteforce"},
         "radius_failure": {"dot1x_failure"},
         "dot1x_failure": {"dot1x_logout"},
@@ -318,28 +333,40 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
         score += 0.45; reasons.append(f"{sa} can lead to {sb}")
 
     # Cross-device correlation based on IP in messages
-    txt_b = text(b)
-    ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text(a))
-    if a.get("device_ip"): ips_a.append(a.get("device_ip"))
+    msg_a = a.get("message", "") or text(a)
+    msg_b = b.get("message", "") or text(b)
+    
+    ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', msg_a)
+    
+    def extract_syslog_ip(e):
+        msg = e.get("raw_message") or e.get("message", "")
+        m = re.search(r'^[A-Z][a-z]{2}\s+\d+\s+\d+:\d+:\d+\s+(?:[\w.-]+\s+)?(\d+\.\d+\.\d+\.\d+)', msg)
+        if m: return m.group(1)
+        return None
+        
+    dev_ip_a = a.get("device_ip") or extract_syslog_ip(a)
+    dev_ip_b = b.get("device_ip") or extract_syslog_ip(b)
+    
     device_a = str(a.get("device", ""))
     device_b = str(b.get("device", ""))
     for ip in ips_a:
         # Ignore the device's own hostname/IP, but allow if it explicitly names device_b
-        if ip == device_a:
+        if ip == device_a or (dev_ip_a and ip == dev_ip_a):
             continue
-        if ip in txt_b or ip == device_b:
+        if ip in msg_b or ip == device_b:
             score += 0.35; reasons.append("shared IP reference")
             break
 
     # VXLAN: correlate events sharing the same tunnel IP (e.g. 9.9.9.9)
-    tunnel_ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', text(a))
-    tunnel_ips_b = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', txt_b)
+    tunnel_ips_a = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', msg_a)
+    tunnel_ips_b = re.findall(r'\b\d+\.\d+\.\d+\.\d+\b', msg_b)
     for ip in tunnel_ips_a:
-        if ip == device_a or ip == device_b:
+        if ip == device_a or (dev_ip_a and ip == dev_ip_a) or ip == device_b or (dev_ip_b and ip == dev_ip_b):
             continue
         if ip in tunnel_ips_b:
             score += 0.10; reasons.append("shared tunnel IP")
             break
+            
     if da == db and da in {"security", "access_control", "hardware", "physical_link", "routing"}:
         score += 0.2; reasons.append("same incident domain")
 
@@ -451,6 +478,7 @@ def analyze_incident(inc: Dict) -> Dict:
         x["normalized_domain"] = domain(x)
         x["root_score"] = root_score(x, i, len(events))
         x["actionable"] = is_actionable(x)
+        x["is_recovery"] = is_recovery(x)
         normalized.append(x)
 
     actionable_events = [e for e in normalized if e["actionable"]]
@@ -485,7 +513,7 @@ def analyze_incident(inc: Dict) -> Dict:
         "incident_type": inc.get("incident_type"),
         "classification": classification,
         "event_count": len(normalized),
-        "events": inc.get("events", []),
+        "events": normalized,
         "root_cause": root,
         "causal_links": links,
         "causal_sequences": sequences,
@@ -500,7 +528,7 @@ def validate_and_split(inc_result: Dict, original_inc: Dict) -> List[Dict]:
     events_by_uid = {}
     recovery_events = []
     
-    for e in original_inc.get("events", []):
+    for e in inc_result.get("events", []):
         uid = e.get("event_uid")
         if uid:
             events_by_uid[uid] = e

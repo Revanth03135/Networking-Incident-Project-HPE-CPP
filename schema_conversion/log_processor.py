@@ -756,20 +756,145 @@ class LogProcessor:
         # If no_llm mode is enabled, skip template generation and LLM analysis
         if getattr(self, "no_llm", False):
             print("-> no_llm enabled: skipping template generation and LLM stages")
-            # Build a minimal formatted record and return immediately
+            # Build a properly classified record without calling any LLM
             timestamp = stage1_entry.get("timestamp") or None
             if not timestamp:
                 from datetime import datetime, timezone
                 timestamp = datetime.now(timezone.utc).isoformat()
 
+            # --- Extract severity from [facility.severity] bracket or LOG_XXX format ---
+            _SEVERITY_MAP = {
+                "emerg": "critical", "emergency": "critical", "alert": "critical",
+                "crit": "critical", "critical": "critical",
+                "err": "error", "error": "error",
+                "warn": "warning", "warning": "warning",
+                "notice": "info", "info": "info", "debug": "info",
+            }
+            severity = "info"
+            m_sev = re.search(r'\[([a-zA-Z0-9_.-]+)\.([a-zA-Z]+)\]', core_message)
+            m_log_sev = re.search(r'LOG_([A-Z]+)', core_message)
+            
+            if m_sev:
+                severity = _SEVERITY_MAP.get(m_sev.group(2).lower(), m_sev.group(2).lower())
+            elif m_log_sev:
+                severity = _SEVERITY_MAP.get(m_log_sev.group(1).lower(), m_log_sev.group(1).lower())
+            else:
+                # Cisco format: %FACILITY-SEVERITY-MNEMONIC (severity 0-2 = critical, 3 = error, 4 = warning, 5-7 = info)
+                m_cisco = re.search(r'%\w+-(\d)-\w+', core_message)
+                if m_cisco:
+                    cisco_sev = int(m_cisco.group(1))
+                    if cisco_sev <= 2:
+                        severity = "critical"
+                    elif cisco_sev == 3:
+                        severity = "error"
+                    elif cisco_sev == 4:
+                        severity = "warning"
+                    else:
+                        severity = "info"
+
+            # --- Strip process header to get clean message ---
+            clean_msg = core_message
+            # HPE format with pid: "process[pid]: [facility.severity] actual message"
+            # Or new HPE format: "process: Event|id|LOG_SEV|DOMAIN|1|actual message"
+            m_new_hpe = re.match(r'^[\w.-]+:\s*Event\|\d+\|LOG_[A-Z]+\|[A-Z]+\|\d+\|(.+)$', core_message)
+            m_hpe = re.match(r'^[\w.-]+(?:\[\d+\])?:\s*(?:\[[^\]]*\]\s*)?(.+)$', core_message)
+            
+            if m_new_hpe:
+                clean_msg = m_new_hpe.group(1).strip()
+            elif m_hpe:
+                clean_msg = m_hpe.group(1).strip()
+            else:
+                # Cisco format: "IP PID: %FACILITY-SEV-MNEMONIC: actual message"
+                m_cisco_msg = re.match(r'^[\d.]+\s+\d+:\s*(.+)$', core_message)
+                if m_cisco_msg:
+                    clean_msg = m_cisco_msg.group(1).strip()
+
+            # --- Detect subtype and type from message content ---
+            _SUBTYPE_RULES = [
+                ("power",               ["power supply", "psu"]),
+                ("fan",                  ["fan tray", "fan speed"]),
+                ("thermal",              ["temperature", "thermal"]),
+                ("crc_errors",           ["crc error", "excessive crc"]),
+                ("interface_down",       ["off-line", "offline", "link down", "is down", "state to down", "changed state to down", "state changed from ptp to down"]),
+                ("interface_up",         ["on-line", "online", "link up", "state to up", "changed state to up", "state changed from down to ptp"]),
+                ("stp_topology_change",  ["topology change", "recalculating spanning tree"]),
+                ("ospf",                 ["ospf"]),
+                ("bgp",                  ["bgp"]),
+                ("dot1x_failure",        ["802.1x", "authentication failed"]),
+                ("radius_failure",       ["radius", "unreachable"]),
+                ("mac_auth",             ["mac-auth"]),
+                ("ssh_bruteforce",       ["ssh login failed", "maximum attempts", "maximum failed attempts"]),
+                ("admin_auth_failure",   ["authentication failure for user", "authfail"]),
+                ("config_change",        ["configuration changed", "config_i", "configured from", "configuration saved"]),
+                ("lldp",                 ["lldp"]),
+                ("transceiver",          ["transceiver", "signal lost"]),
+                ("ntp",                  ["ntp", "synchronized with", "synchronized to"]),
+                ("snmp",                 ["snmpd", "snmp"]),
+                ("tunnel_nexthop_delete", ["nexthop delete"]),
+                ("tunnel_nexthop_add",    ["nexthop add"]),
+                ("tunnel_activating",     ["forwarding_state is activating"]),
+                ("tunnel_operational",    ["forwarding_state is operational"]),
+                ("vtep_operational",      ["vtep-peer", "vtep_peer"]),
+                ("vni_create",            ["vni id", "vni_id"]),
+                ("vxlan_interface",       ["interface vxlan", "vxlan"]),
+                ("vlan",                 ["vlan"]),
+            ]
+            _TYPE_MAP = {
+                "power": "hardware", "fan": "hardware", "thermal": "hardware",
+                "crc_errors": "physical_link", "interface_down": "physical_link",
+                "interface_up": "physical_link", "transceiver": "physical_link",
+                "stp_topology_change": "stp_topology",
+                "ospf": "routing", "bgp": "routing",
+                "dot1x_failure": "access_control", "mac_auth": "access_control",
+                "radius_failure": "security",
+                "ssh_bruteforce": "security", "admin_auth_failure": "authentication",
+                "config_change": "configuration",
+                "lldp": "inventory", "vlan": "inventory",
+                "ntp": "service", "snmp": "service",
+                "tunnel_nexthop_delete": "tunnel", "tunnel_nexthop_add": "tunnel",
+                "tunnel_activating": "tunnel", "tunnel_operational": "tunnel",
+                "vtep_operational": "tunnel", "vni_create": "tunnel",
+                "vxlan_interface": "tunnel",
+            }
+
+            detected_subtype = "raw"
+            detected_type = "log"
+            msg_lower = core_message.lower()
+            for st, keywords in _SUBTYPE_RULES:
+                if any(kw in msg_lower for kw in keywords):
+                    detected_subtype = st
+                    detected_type = _TYPE_MAP.get(st, "log")
+                    break
+
+            # --- Extract interface/port ---
+            interface_id = None
+            vlan = None
+            m_port = re.search(r'[Pp]ort\s+(\d+/\d+/\d+|\d+/\d+|\d+)', core_message)
+            if m_port:
+                interface_id = m_port.group(1)
+            # Cisco: GigabitEthernet0/2
+            m_iface = re.search(r'((?:GigabitEthernet|FastEthernet|Ethernet|Loopback|Vlan)\S+)', core_message, re.I)
+            if m_iface and not interface_id:
+                iface_name = m_iface.group(1)
+                if iface_name.lower().startswith("vlan"):
+                    vlan_m = re.search(r'\d+', iface_name)
+                    if vlan_m:
+                        vlan = vlan_m.group()
+                else:
+                    interface_id = iface_name
+            # VLAN extraction from text
+            m_vlan = re.search(r'VLAN\s+(\d+)', core_message, re.I)
+            if m_vlan and not vlan:
+                vlan = m_vlan.group(1)
+
             output_record = {
                 "event": {
                     "event_uid": line_number,
                     "event_id": None,
-                    "type": "log",
-                    "subtype": "raw",
-                    "severity": "info",
-                    "message": core_message
+                    "type": detected_type,
+                    "subtype": detected_subtype,
+                    "severity": severity,
+                    "message": clean_msg
                 },
                 "device": {
                     "hostname": stage1_entry.get("hostname") or "unknown",
@@ -778,8 +903,8 @@ class LogProcessor:
                     "os": stage1_entry.get("os")
                 },
                 "network": {
-                    "interface_id": None,
-                    "vlan": None
+                    "interface_id": interface_id,
+                    "vlan": vlan
                 },
                 "timestamps": {
                     "event_time": timestamp,
@@ -790,7 +915,7 @@ class LogProcessor:
                 }
             }
 
-            print("[OK] Produced minimal record in no_llm mode")
+            print(f"[OK] Produced record in no_llm mode: type={detected_type}, subtype={detected_subtype}, severity={severity}")
             return output_record
             
         print("-> STAGE 1.5: Generating template hash...")
