@@ -1,1 +1,522 @@
-[]
+[
+  {
+    "event": {
+      "event_uid": 1,
+      "event_id": null,
+      "type": "fabric",
+      "subtype": "lldp",
+      "severity": "info",
+      "message": "rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:01:50+00:00"
+    },
+    "raw": {
+      "message": "May 20 09:01:50 router-2 rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 2,
+      "event_id": null,
+      "type": "security",
+      "subtype": "authentication",
+      "severity": "info",
+      "message": "mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:18:00+00:00"
+    },
+    "raw": {
+      "message": "May 20 09:18:00 router-2 mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 3,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "warning",
+      "message": "rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:27:30+00:00"
+    },
+    "raw": {
+      "message": "May 20 09:27:30 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 4,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "ospf",
+      "severity": "warning",
+      "message": "rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:28:10+00:00"
+    },
+    "raw": {
+      "message": "May 20 09:28:10 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 5,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "warning",
+      "message": "rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:38:12+00:00"
+    },
+    "raw": {
+      "message": "May 20 09:38:12 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 6,
+      "event_id": null,
+      "type": "system",
+      "subtype": "power",
+      "severity": "info",
+      "message": "chassisd[330]: [chassis.info] Power supply 1 status: ok"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:40:00+00:00"
+    },
+    "raw": {
+      "message": "May 20 09:40:00 router-2 chassisd[330]: [chassis.info] Power supply 1 status: ok"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 7,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "warning",
+      "message": "rpd[1190]: [daemon.info] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Idle to Established"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:51:15+00:00"
+    },
+    "raw": {
+      "message": "May 20 09:51:15 router-2 rpd[1190]: [daemon.info] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Idle to Established"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 8,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "ospf",
+      "severity": "info",
+      "message": "rpd[1190]: [daemon.info] RPD_OSPF_NBRUP: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Down to Full"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:55:20+00:00"
+    },
+    "raw": {
+      "message": "May 20 09:55:20 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRUP: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Down to Full"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 9,
+      "event_id": null,
+      "type": "system",
+      "subtype": "temperature",
+      "severity": "warning",
+      "message": "chassisd[330]: [hw.warn] Temperature sensor 1 reading elevated: 52C (threshold 65C)"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T10:10:00+00:00"
+    },
+    "raw": {
+      "message": "May 20 10:10:00 router-2 chassisd[330]: [hw.warn] Temperature sensor 1 reading elevated: 52C (threshold 65C)"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 10,
+      "event_id": null,
+      "type": "security",
+      "subtype": "authentication",
+      "severity": "info",
+      "message": "mgd[455]: [mgmt.notice] User admin logged out"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T10:20:00+00:00"
+    },
+    "raw": {
+      "message": "May 20 10:20:00 router-2 mgd[455]: [mgmt.notice] User admin logged out"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 1,
+      "event_id": null,
+      "type": "fabric",
+      "subtype": "lldp",
+      "severity": "info",
+      "message": "lldp_neighbor_discovered"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:01:50"
+    },
+    "raw": {
+      "message": "May 20 09:01:50 router-2 rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 1,
+      "event_id": null,
+      "type": "interface",
+      "subtype": "interface",
+      "severity": "info",
+      "message": "interface_discovered"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": null,
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": "ge-0/0/1",
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:01:50"
+    },
+    "raw": {
+      "message": "May 20 09:01:50 router-2 rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 2,
+      "event_id": null,
+      "type": "security",
+      "subtype": "authentication",
+      "severity": "info",
+      "message": "authentication_login"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": "192.168.1.200",
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:18:00"
+    },
+    "raw": {
+      "message": "May 20 09:18:00 router-2 mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 2,
+      "event_id": null,
+      "type": "security",
+      "subtype": "authentication",
+      "severity": "info",
+      "message": "authentication_login"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": "192.168.1.200",
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:18:00"
+    },
+    "raw": {
+      "message": "May 20 09:18:00 router-2 mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 3,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "warning",
+      "message": "bgp_neighbor_changed"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": "192.168.1.2",
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:27:30"
+    },
+    "raw": {
+      "message": "May 20 09:27:30 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 3,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "warning",
+      "message": "bgp_neighbor_changed"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": "192.168.1.2",
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:27:30"
+    },
+    "raw": {
+      "message": "May 20 09:27:30 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 4,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "ospf",
+      "severity": "warning",
+      "message": "ospf_neighbor_down"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": "192.168.3.1",
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": "ge-0/0/2.0",
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:28:10"
+    },
+    "raw": {
+      "message": "May 20 09:28:10 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 4,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "ospf",
+      "severity": "warning",
+      "message": "ospf_neighbor_down"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": "192.168.3.1",
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": "ge-0/0/2.0",
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:28:10"
+    },
+    "raw": {
+      "message": "May 20 09:28:10 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 5,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "warning",
+      "message": "bgp_neighbor_changed"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": "192.168.1.10",
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:38:12"
+    },
+    "raw": {
+      "message": "May 20 09:38:12 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired"
+    }
+  },
+  {
+    "event": {
+      "event_uid": 5,
+      "event_id": null,
+      "type": "routing",
+      "subtype": "bgp",
+      "severity": "warning",
+      "message": "bgp_neighbor_changed"
+    },
+    "device": {
+      "hostname": "router-2",
+      "ip": "192.168.1.10",
+      "vendor": "unknown",
+      "os": null
+    },
+    "network": {
+      "interface_id": null,
+      "vlan": null
+    },
+    "timestamps": {
+      "event_time": "2026-05-20T09:38:12"
+    },
+    "raw": {
+      "message": "May 20 09:38:12 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired"
+    }
+  }
+]

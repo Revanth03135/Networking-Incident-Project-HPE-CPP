@@ -1,0 +1,1 @@
+[{"timestamp": "2026-05-20T09:40:00", "hostname": "router-2", "ip": null, "vendor": null, "os": null, "core_message": "Power supply 1 status: ok", "raw_log": "May 20 09:40:00 router-2 chassisd[330]: [chassis.info] Power supply 1 status: ok"}]
