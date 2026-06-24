@@ -66,24 +66,34 @@ DOMAIN_RULES = [
     ("hardware", ["power", "psu", "fan", "temperature", "thermal", "hw", "hardware"]),
     ("security", ["ssh login failed", "maximum attempts", "security", "bruteforce", "brute force", "radius"]),
     ("authentication", ["802.1x", "mac-auth", "auth", "authentication"]),
+    ("tunnel", ["tunnel", "vxlan", "vtep", "nexthop", "vni"]),
     ("routing", ["bgp", "ospf", "routing", "neighbor", "peer"]),
     ("stp_topology", ["mstp", "stp", "topology change", "recalculating spanning tree", "spanning tree"]),
     ("physical_link", ["crc", "transceiver", "optic", "sfp", "link down", "off-line", "offline", "port", "interface"]),
     ("configuration", ["configuration changed", "config changed", "config"]),
     ("service", ["ntp", "snmp", "daemon", "vsftpd"]),
     ("inventory", ["lldp", "vlan"]),
+    ("performance", ["queue drop", "tail drop", "buffer full", "buffer overflow", "cpu utilization", "high cpu", "memory utilization", "memory leak"]),
+    ("high_availability", ["vrrp", "hsrp", "mlag", "vsx", "vpc"]),
+    ("vpn", ["ipsec", "ike phase", "isakmp"]),
+    ("multicast", ["pim neighbor", "igmp"]),
 ]
 
 COMPATIBLE_DOMAINS = {
     "hardware": {"hardware", "physical_link", "stp_topology", "routing"},
     "physical_link": {"physical_link", "stp_topology", "routing", "authentication"},
     "stp_topology": {"physical_link", "stp_topology", "routing"},
-    "routing": {"physical_link", "stp_topology", "routing", "configuration"},
+    "routing": {"physical_link", "stp_topology", "routing", "configuration", "tunnel"},
     "authentication": {"authentication", "security", "physical_link"},
     "security": {"security", "authentication"},
     "configuration": {"configuration", "routing", "physical_link", "authentication"},
     "service": {"service"},
     "inventory": {"inventory"},
+    "tunnel": {"tunnel", "routing", "physical_link", "vpn", "multicast"},
+    "performance": {"performance", "hardware", "routing", "physical_link", "tunnel"},
+    "high_availability": {"high_availability", "routing", "physical_link", "stp_topology"},
+    "vpn": {"vpn", "routing", "physical_link", "tunnel"},
+    "multicast": {"multicast", "routing", "tunnel"},
     "unknown": {"unknown"},
 }
 
@@ -113,6 +123,20 @@ COOCCURRING_SUBTYPES = {
     frozenset({"tunnel_nexthop_delete", "vtep_down"}),
     frozenset({"tunnel_activating", "tunnel_operational"}),
     frozenset({"interface_down", "tunnel_nexthop_delete"}),
+    # Performance co-occurrences
+    frozenset({"high_cpu", "ospf_neighbor_down"}),
+    frozenset({"high_cpu", "bgp"}),
+    frozenset({"buffer_overflow", "queue_drop"}),
+    # HA / VRRP
+    frozenset({"interface_down", "vrrp_state_change"}),
+    frozenset({"vrrp_state_change", "ospf"}),
+    # VPN
+    frozenset({"ipsec_tunnel_down", "ike_failure"}),
+    frozenset({"ipsec_tunnel_down", "bgp"}),
+    # Multicast
+    frozenset({"pim_neighbor_down", "ospf"}),
+    # Security
+    frozenset({"mac_flap", "stp_topology_change"}),
 }
 
 SEVERITY_RANK = {
@@ -260,9 +284,9 @@ def compatibility_score(
             except nx.NetworkXNoPath:
                 pass
 
-    # Same device is a moderate signal (not as strong as shared identifiers)
+    # Same device is a weak signal on its own (needs port/domain match)
     if dev_a == dev_b and dev_a != "unknown":
-        score += 0.15
+        score += 0.10
 
     # Explicit cross-references in log content
     if shares_explicit_reference(a, b):
@@ -292,7 +316,7 @@ def compatibility_score(
         score += 0.20
 
     if shares_interface_reference(a, b) and dev_a == dev_b:
-        score += 0.15
+        score += 0.35
 
     if same_client_mac(a, b):
         score += 0.15
@@ -303,9 +327,7 @@ def compatibility_score(
     da = a.get("incident_domain", normalize_domain(a))
     db = b.get("incident_domain", normalize_domain(b))
     if da == db and da != "unknown":
-        score += 0.20
-    elif db in COMPATIBLE_DOMAINS.get(da, set()):
-        score += 0.10
+        score += 0.30
         
     # Prevent independent interface flaps from being swept into routing incidents
     # just because they happen within the time window.
@@ -317,6 +339,11 @@ def compatibility_score(
                 score += 0.30 # Strong bonus to bind same-device L1->L3 cascades
             else:
                 score -= 0.10
+
+    # Penalize bridging unrelated noise (service, inventory) to critical infrastructure
+    if bool({"service", "inventory"} & {da, db}) and bool({"hardware", "physical_link", "routing", "tunnel", "performance", "high_availability"} & {da, db}):
+        if not (shares_explicit_reference(a, b) or shares_interface_reference(a, b)):
+            score -= 0.50  # Sever the connection unless explicitly linked
 
     # --------------------------------------------------
     # 4. Temporal compatibility
@@ -390,7 +417,7 @@ def build_compatibility_graph(
 
     pairs = _candidate_pairs_within_window(
         events,
-        max_window=timedelta(seconds=MAX_PLAUSIBLE_INCIDENT_SPAN),
+        max_window=timedelta(seconds=300),
     )
 
     edge_count = 0
@@ -522,8 +549,13 @@ def build_incidents(
         start = min(event_time(e) for e in deduped)
         end = max(event_time(e) for e in deduped)
 
+        max_sev_rank = max((SEVERITY_RANK.get(str(e.get("severity", "info")).lower(), 1) for e in deduped), default=1)
+        is_incident = max_sev_rank > 1
+        prefix = "INC" if is_incident else "WORKFLOW"
+
         incident = {
-            "incident_id": f"INC-{idx:04d}",
+            "incident_id": f"{prefix}-{idx:04d}",
+            "is_incident": is_incident,
             "incident_domain": domains[0] if len(domains) == 1 else "+".join(domains),
             "start_time": start,
             "end_time": end,
@@ -568,7 +600,10 @@ def print_timeline(incidents: List[Dict[str, Any]]) -> None:
                 f"{str(e.get('message') or '')[:80]}"
             )
     print(f"\n{'=' * 70}")
-    print(f"Total incidents: {len(incidents)}")
+    num_incidents = sum(1 for i in incidents if i.get('is_incident'))
+    num_workflows = len(incidents) - num_incidents
+    print(f"Total actionable incidents: {num_incidents}")
+    print(f"Total operational workflows: {num_workflows}")
     print("=" * 70)
 
 

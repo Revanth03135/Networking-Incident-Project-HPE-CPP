@@ -95,35 +95,40 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                 # Quick subtype detection from message content
                 _SUBTYPE_RULES = [
                     # Standard syslog patterns
-                    ("power",               ["power supply", "psu"]),
-                    ("fan",                 ["fan tray", "fan speed"]),
-                    ("thermal",             ["temperature", "thermal"]),
-                    ("linecard_disabled",   ["linecard slot", "disabled due to"]),
-                    ("crc_errors",          ["crc error", "excessive crc"]),
-                    ("interface_down",      ["off-line", "offline", "link down", "is down", "operational status changed to down"]),
-                    ("interface_up",        ["on-line", "online", "link up", "operational status changed to up"]),
-                    ("stp_topology_change", ["topology change", "mstp", "recalculating spanning tree", "spanning tree"]),
-                    ("ospf_interface_down", ["ospf interface", "ptp to down"]),
-                    ("ospf_interface_up",   ["ospf interface", "down to ptp"]),
-                    ("ospf_neighbor_down",  ["ospf neighbor", "full to down"]),
-                    ("ospf_neighbor_up",    ["ospf neighbor", "down to full"]),
+                    ("power_failure",          ["power supply", "psu failure", "psu failed", "power failure"]),
+                    ("fan_failure",            ["fan tray", "fan failure", "fan stopped", "speed out of normal range", "fan tray failed"]),
+                    ("fan_nominal",            ["speed nominal", "fan nominal"]),
+                    ("thermal",              ["temperature critical", "thermal protection"]),
+                    ("linecard_disabled",    ["linecard slot", "disabled due to"]),
+                    ("crc_errors",           ["crc error", "excessive crc"]),
+                    ("interface_down",       ["off-line", "offline", "link down", "is down", "operational status changed to down"]),
+                    ("interface_up",         ["on-line", "online", "link up", "operational status changed to up"]),
+                    ("stp_topology_change",  ["topology change", "mstp", "recalculating spanning tree", "spanning tree"]),
+                    ("ospf_interface_down",  ["ptp to down"]),
+                    ("ospf_interface_up",    ["down to ptp"]),
+                    ("ospf_neighbor_down",   ["full to down"]),
+                    ("ospf_neighbor_up",     ["down to full"]),
                     ("route_recalculation_started",   ["routing table recalculation started"]),
                     ("route_recalculation_completed", ["routing table recalculation completed"]),
                     ("routes_withdrawn",    ["routes withdrawn"]),
-                    ("ospf",                ["ospf"]),
-                    ("bgp_session_lost",    ["bgp peer", "session lost"]),
-                    ("bgp_session_established", ["bgp peer", "session established"]),
-                    ("route_withdrawal",    ["route withdrawal"]),
-                    ("routes_relearned",    ["routes successfully relearned"]),
-                    ("bgp",                 ["bgp"]),
-                    ("dot1x_failure",       ["802.1x", "authentication failed"]),
-                    ("port_blocked",        ["blocked due to repeated"]),
-                    ("mac_auth",            ["mac-auth", "mac authentication"]),
-                    ("ssh_source_blocked",  ["ssh source", "blocked after maximum"]),
-                    ("ssh_bruteforce",      ["ssh login failed", "maximum attempts"]),
-                    ("admin_auth_failure",  ["authentication failure for user"]),
-                    ("config_change",       ["configuration changed"]),
-                    ("lldp",                ["lldp"]),
+                    ("bgp_session_lost",     ["session lost", "session down", "hold timer expired"]),
+                    ("bgp_session_established", ["session established"]),
+                    ("route_withdrawal",     ["route withdrawal"]),
+                    ("routes_relearned",     ["routes successfully relearned"]),
+                    ("bgp",                  ["bgp"]),
+                    ("ospf",                 ["ospf"]),
+                    ("dot1x_logout",         ["logged out", "dot1x_logout"]),
+                    ("dot1x_failure",        ["authentication failed"]),
+                    ("port_blocked",         ["blocked due to repeated"]),
+                    ("radius_failure",       ["radius server unreachable", "radius unreachable"]),
+                    ("radius_recovered",     ["backup radius", "radius restored"]),
+                    ("mac_auth_success",     ["authentication succeeded"]),
+                    ("mac_auth",             ["mac-auth", "mac authentication"]),
+                    ("ssh_source_blocked",   ["ssh source", "blocked after maximum"]),
+                    ("ssh_bruteforce",       ["ssh login failed", "maximum attempts", "maximum failed attempts"]),
+                    ("admin_auth_failure",   ["authentication failure for user", "authfail"]),
+                    ("config_change",        ["configuration changed", "config_i", "configured from", "configuration saved"]),
+                    ("lldp",                 ["lldp"]),
                     ("transceiver",         ["transceiver"]),
                     ("ntp",                 ["ntp"]),
                     ("snmp",                ["snmpd", "snmp"]),
@@ -135,6 +140,20 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     ("vtep_operational",      ["vtep-peer", "vtep_peer"]),
                     ("vni_create",            ["vni id", "vni_id"]),
                     ("vxlan_interface",       ["interface vxlan", "vxlan"]),
+                    ("high_cpu",              ["cpu utilization", "high cpu"]),
+                    ("high_memory",           ["memory utilization", "memory leak"]),
+                    ("queue_drop",            ["queue drop", "tail drop"]),
+                    ("buffer_overflow",       ["buffer full", "buffer overflow"]),
+                    ("vrrp_state_change",     ["vrrp"]),
+                    ("hsrp_state_change",     ["hsrp"]),
+                    ("mlag_peer_down",        ["mlag", "vsx", "vpc"]),
+                    ("acl_deny",              ["acl deny", "list deny"]),
+                    ("arp_spoofing",          ["arp inspection", "spoofing"]),
+                    ("mac_flap",              ["mac flapping", "host flapping"]),
+                    ("ipsec_tunnel_down",     ["ipsec"]),
+                    ("ike_failure",           ["ike phase", "isakmp"]),
+                    ("pim_neighbor_down",     ["pim neighbor"]),
+                    ("igmp_snooping_error",   ["igmp"]),
                     # Generic vlan — after vxlan/vni to avoid false matches
                     ("vlan",                ["vlan"]),
                 ]
@@ -174,7 +193,7 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                         if any(kw in chunk_lower for kw in keywords):
                             detected_subtype = st
                             # Map to high-level type
-                            if st in ("power", "fan", "thermal", "linecard_disabled"):
+                            if st in ("power_failure", "fan_failure", "fan_nominal", "thermal", "linecard_disabled"):
                                 detected_type = "hardware"
                             elif st in ("crc_errors", "interface_down", "interface_up", "transceiver"):
                                 detected_type = "physical_link"
@@ -182,9 +201,9 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                                 detected_type = "topology"
                             elif st in ("ospf", "bgp", "ospf_interface_down", "ospf_interface_up", "ospf_neighbor_down", "ospf_neighbor_up", "route_recalculation_started", "route_recalculation_completed", "bgp_session_lost", "bgp_session_established", "route_withdrawal", "routes_relearned", "routes_withdrawn"):
                                 detected_type = "routing"
-                            elif st in ("dot1x_failure", "mac_auth", "port_blocked"):
+                            elif st in ("dot1x_failure", "mac_auth", "mac_auth_success", "port_blocked"):
                                 detected_type = "access_control"
-                            elif st in ("ssh_bruteforce", "admin_auth_failure", "ssh_source_blocked"):
+                            elif st in ("ssh_bruteforce", "admin_auth_failure", "ssh_source_blocked", "acl_deny", "arp_spoofing", "mac_flap", "radius_recovered"):
                                 detected_type = "security"
                             elif st in ("config_change",):
                                 detected_type = "configuration"
@@ -192,6 +211,16 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                                 detected_type = "inventory"
                             elif st in ("ntp", "snmp"):
                                 detected_type = "service"
+                            elif st in ("tunnel_nexthop_delete", "tunnel_nexthop_add", "tunnel_activating", "tunnel_operational", "vtep_operational", "vni_create", "vxlan_interface"):
+                                detected_type = "tunnel"
+                            elif st in ("high_cpu", "high_memory", "queue_drop", "buffer_overflow"):
+                                detected_type = "performance"
+                            elif st in ("vrrp_state_change", "hsrp_state_change", "mlag_peer_down"):
+                                detected_type = "high_availability"
+                            elif st in ("ipsec_tunnel_down", "ike_failure"):
+                                detected_type = "vpn"
+                            elif st in ("pim_neighbor_down", "igmp_snooping_error"):
+                                detected_type = "multicast"
                             break
 
                     # --- Extract interface/port ---
@@ -661,7 +690,9 @@ def run_full_pipeline(input_path: Path, output_dir: Path, use_llm_report: bool =
         "report": str(report_path),
         "pdf_report": pdf_status,
         "visualization": str(visual_path),
-        "incidents": len(timeline_data),
+        "actionable_incidents": len([i for i in timeline_data if i.get("is_incident")]),
+        "operational_workflows": len([i for i in timeline_data if not i.get("is_incident")]),
+        "total_clusters": len(timeline_data),
     }
 
 

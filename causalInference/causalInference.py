@@ -16,14 +16,15 @@ import networkx as nx
 
 SEV = {"debug": 0, "info": 1, "notice": 1, "warning": 2, "warn": 2, "error": 3, "err": 3, "critical": 4, "crit": 4}
 BENIGN = {"snmp", "ntp", "vlan", "lldp", "interface_up", "mac_auth_success", "dot1x_logout",
-          "vtep_operational", "tunnel_operational", "vni_create", "vxlan_interface", "tunnel_nexthop_add"}
-ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change", "tunnel_nexthop_delete", "power", "fan", "crc_errors", "interface_down", "radius_failure", "transceiver"}
+          "vtep_operational", "tunnel_operational", "vni_create", "vxlan_interface", "tunnel_nexthop_add",
+          "fan_nominal", "bgp_session_established", "ospf_neighbor_up", "radius_recovered", "ospf_interface_up"}
+ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change", "tunnel_nexthop_delete", "power_failure", "fan_failure", "crc_errors", "interface_down", "radius_failure", "transceiver"}
 
 # BASE scores reflect the causal weight of each event type.
 # Hardware/Physical failures score highest. VXLAN/tunnel events are Layer 2/3 overlay.
 BASE = {
     # --- Layer 0: Hardware ---
-    "power": 130, "fan": 110, "thermal": 105,
+    "power_failure": 130, "fan_failure": 110, "thermal": 105,
     # --- Layer 1: Physical Link ---
     "transceiver": 125, "crc_errors": 120, "interface_down": 115,
     # --- Layer 2: Switching / Topology / VXLAN Overlay ---
@@ -33,36 +34,50 @@ BASE = {
     "vtep_operational": 10, "vtep_down": 90,
     # --- Layer 3: Routing / Tunnel Underlay ---
     "ospf": 95, "bgp": 80,
-    "tunnel_nexthop_delete": 95,  # nexthop withdraw = routing change, high-weight root cause
+    "tunnel_nexthop_delete": 10,  # nexthop withdraw = routine transition, low weight
     "tunnel_nexthop_add": 10,     # nexthop add = recovery, low root-cause weight
     "tunnel_activating": 40,
     "tunnel_operational": 8,      # tunnel up = recovery indicator
+    "pim_neighbor_down": 85, "igmp_snooping_error": 65,
+    "ipsec_tunnel_down": 100, "ike_failure": 90,
+    # --- Performance / HA / System ---
+    "vrrp_state_change": 75, "hsrp_state_change": 75, "mlag_peer_down": 110,
+    "high_cpu": 115, "high_memory": 115,
+    "queue_drop": 80, "buffer_overflow": 85,
     # --- Configuration ---
     "config_change": 60,
     # --- Security ---
     "ssh_bruteforce": 25, "admin_auth_failure": 20,
-    # --- Informational / noise ---
-    "interface_up": 5, "snmp": 3, "ntp": 3,
+    "acl_deny": 15, "arp_spoofing": 85, "mac_flap": 80,
+    # --- Informational / noise / recovery ---
+    "interface_up": 5, "snmp": 3, "ntp": 3, "fan_nominal": 2,
+    "bgp_session_established": 5, "ospf_neighbor_up": 5, "radius_recovered": 5, "ospf_interface_up": 5,
 }
 
 # LAYER maps each subtype to its OSI-ish tier.
 LAYER = {
-    "power": 0, "fan": 0, "thermal": 0,
+    "power_failure": 0, "fan_failure": 0, "thermal": 0,
     "crc_errors": 1, "interface_down": 1,
     "interface_up": 1, "transceiver": 1,
     "stp_topology_change": 2, "vlan": 2, "lldp": 2,
     "mac_auth_success": 2, "dot1x_failure": 2,
     "vni_create": 2, "vxlan_interface": 2, "vtep_operational": 2, "vtep_down": 2,
+    "mac_flap": 2, "arp_spoofing": 2, "fan_nominal": 0,
     "ospf": 3, "ospf_neighbor_down": 3, "bgp": 3, "config_change": 3,
     "tunnel_nexthop_delete": 3, "tunnel_nexthop_add": 3,
     "tunnel_activating": 3, "tunnel_operational": 3,
-    "ssh_bruteforce": 4, "admin_auth_failure": 4,
+    "vrrp_state_change": 3, "hsrp_state_change": 3, "mlag_peer_down": 2,
+    "ipsec_tunnel_down": 3, "ike_failure": 3,
+    "pim_neighbor_down": 3, "igmp_snooping_error": 2,
+    "high_cpu": 0, "high_memory": 0, "queue_drop": 2, "buffer_overflow": 2,
+    "ssh_bruteforce": 4, "admin_auth_failure": 4, "acl_deny": 4,
+    "bgp_session_established": 3, "ospf_neighbor_up": 3, "radius_recovered": 4, "ospf_interface_up": 3,
 }
 
 # Network domain classification (5-tier + VXLAN overlay):
 DOMAIN_TIER = {
-    "power": "Layer 0 - Hardware",
-    "fan": "Layer 0 - Hardware",
+    "power_failure": "Layer 0 - Hardware",
+    "fan_failure": "Layer 0 - Hardware",
     "thermal": "Layer 0 - Hardware",
     "crc_errors": "Layer 1 - Physical",
     "interface_down": "Layer 1 - Physical",
@@ -92,7 +107,7 @@ DOMAIN_TIER = {
     "ntp": "Layer 4 - Management",
 }
 
-RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan", "power", "ntp", "transceiver",
+RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan_failure", "power_failure", "ntp", "transceiver",
                    "tunnel_operational", "vtep_operational", "tunnel_nexthop_add"}
 RECOVERY_KEYWORDS = {"established", "up", "on-line", "online", "restored", "synchronized",
                      "forwarding", "operational", "activating", "inserted", "full", "ptp", "relearned"}
@@ -116,12 +131,15 @@ def text(e):
 
 
 def subtype(e):
+    st = e.get("subtype")
+    if st and st not in ("raw", "unknown"):
+        return st
     s = text(e)
     # --- Standard syslog events ---
     if "snmpd" in s: return "snmp"
     if "ntp" in s: return "ntp"
-    if "power supply" in s or "psu" in s: return "power"
-    if "fan" in s: return "fan"
+    if "power supply" in s or "psu" in s: return "power_failure"
+    if "fan_failure" in s: return "fan_failure"
     if "crc" in s: return "crc_errors"
     if "off-line" in s or "offline" in s or "link down" in s or "state to down" in s: return "interface_down"
     if "on-line" in s or "online" in s or "link up" in s or "state to up" in s: return "interface_up"
@@ -185,7 +203,7 @@ def is_recovery(e):
 # almost always downstream effects or independent noise in network incidents.
 _SECURITY_NOISE = {"ssh_bruteforce", "admin_auth_failure", "dot1x_logout", "mac_auth_success"}
 # Hardware/physical events that should be strongly boosted as root cause candidates.
-_INFRA_CRITICAL = {"power", "fan", "crc_errors", "interface_down", "transceiver"}
+_INFRA_CRITICAL = {"power_failure", "fan_failure", "crc_errors", "interface_down", "transceiver"}
 _ROUTING_CRITICAL = {"ospf", "bgp"}
 
 
@@ -259,7 +277,7 @@ def is_actionable(e):
     sev = SEV.get(n(e.get("severity")), 1)
     if st in {"snmp", "ntp"} and sev <= 2:
         return False
-    if st in BENIGN and sev <= 1:
+    if st in BENIGN:
         return False
     return sev >= 2 or st in ACTIONABLE_LOW_OK
 
@@ -303,8 +321,8 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
 
     pairs = {
         # Standard syslog causal chains
-        "power": {"fan", "interface_down", "crc_errors", "thermal", "bgp", "ospf"},
-        "fan": {"thermal", "interface_down"},
+        "power_failure": {"fan_failure", "interface_down", "crc_errors", "thermal", "bgp", "ospf"},
+        "fan_failure": {"thermal", "interface_down"},
         "thermal": {"interface_down", "bgp", "ospf"},
         "crc_errors": {"interface_down", "stp_topology_change", "ospf", "bgp"},
         "transceiver": {"interface_down", "crc_errors"},
@@ -318,8 +336,7 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
         "ospf_neighbor_down": {"ospf", "bgp"},
         "admin_auth_failure": {"ssh_bruteforce"},
         "radius_failure": {"dot1x_failure"},
-        "dot1x_failure": {"dot1x_logout"},
-        # VXLAN/tunnel reconvergence chain:
+        "dot1x_failure": {"dot1x_logout", "radius_failure", "radius_recovered"},
         # underlay routing change → nexthop delete → tunnel activating → nexthop add → operational → vtep up
         "tunnel_nexthop_delete": {"tunnel_activating", "tunnel_nexthop_add"},
         "tunnel_activating":     {"tunnel_nexthop_add", "tunnel_operational"},
@@ -515,7 +532,9 @@ def analyze_incident(inc: Dict) -> Dict:
         sev_ranks = {"info": 1, "warning": 2, "error": 3, "critical": 4}
         max_sev = max((sev_ranks.get(str(e.get("severity", "info")).lower(), 1) for e in normalized), default=1)
         
-        if has_hardware:
+        if all(e.get("normalized_subtype") in BENIGN for e in normalized):
+            classification = "informational"
+        elif has_hardware:
             classification = "actionable"
         elif max_sev >= 2:
             classification = "standalone_alert"
@@ -561,9 +580,10 @@ def analyze_incident(inc: Dict) -> Dict:
 
     return {
         "incident_id": inc.get("incident_id"),
+        "is_incident": inc.get("is_incident", classification in ("actionable", "standalone_alert")),
         "incident_type": inc.get("incident_type"),
         "classification": classification,
-        "status": status,
+        "status": "Successful" if classification == "operational_workflow" else status,
         "event_count": len(normalized),
         "start_time": start_time,
         "end_time": end_time,
