@@ -509,10 +509,17 @@ def analyze_incident(inc: Dict) -> Dict:
     unrelated = [e.get("event_uid") for e in normalized if e.get("event_uid") not in linked_uids and (not root or e.get("event_uid") != root.get("event_uid"))]
 
     # Explicit noise filter: if there are no causal links, it's noise UNLESS it's a hardware failure
-    # This prevents isolated auth failures, interface flaps, or CRC warnings from becoming standalone incidents.
+    # or a high severity alert (warning/error/critical) which becomes a standalone_alert.
     if not links:
         has_hardware = any(e.get("normalized_domain") == "hardware" for e in normalized)
-        if not has_hardware:
+        sev_ranks = {"info": 1, "warning": 2, "error": 3, "critical": 4}
+        max_sev = max((sev_ranks.get(str(e.get("severity", "info")).lower(), 1) for e in normalized), default=1)
+        
+        if has_hardware:
+            classification = "actionable"
+        elif max_sev >= 2:
+            classification = "standalone_alert"
+        else:
             classification = "informational"
 
     start_time = None
@@ -530,10 +537,33 @@ def analyze_incident(inc: Dict) -> Dict:
             if e.get("device"):
                 devices.add(e.get("device"))
 
+    status = "Active"
+    
+    # Explicit operational workflow filter
+    if normalized and classification not in ("informational", "standalone_alert"):
+        sev_ranks = {"info": 1, "warning": 2, "error": 3, "critical": 4}
+        max_sev = max((sev_ranks.get(str(e.get("severity", "info")).lower(), 1) for e in normalized), default=1)
+        
+        ends_with_recovery = any(e.get("is_recovery") for e in normalized[-3:])
+        unrecovered = 0
+        for e in normalized:
+            sev = sev_ranks.get(str(e.get("severity", "info")).lower(), 1)
+            if sev > 1 and not e.get("is_recovery"):
+                unrecovered += 1
+            elif e.get("is_recovery"):
+                unrecovered = max(0, unrecovered - 1)
+                
+        if max_sev <= 1:
+            classification = "operational_workflow"
+        elif unrecovered == 0 and ends_with_recovery:
+            classification = "actionable"
+            status = "Resolved"
+
     return {
         "incident_id": inc.get("incident_id"),
         "incident_type": inc.get("incident_type"),
         "classification": classification,
+        "status": status,
         "event_count": len(normalized),
         "start_time": start_time,
         "end_time": end_time,

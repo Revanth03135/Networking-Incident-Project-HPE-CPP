@@ -1,61 +1,120 @@
 # Network Incident Investigation Report
 
-Generated: 2026-06-21T19:04:28Z
+Generated: 2026-06-24T15:47:30Z
 
 ## Executive Summary
-- Total incidents reconstructed: 12
-- Total events analyzed: 20
-- Total causal links inferred: 5
-- Affected devices: 192.168.1.104
+- Total incidents reconstructed: 6
+- Total events analyzed: 45
+- Total causal links inferred: 52
+- Affected devices: Access-6100-02, Access-6100-03, Core-8325-01, Dist-6300-01
 
 ## Probable Initiating Triggers
-- Incident INC-0004-1 -> dot1x_failure (device=192.168.1.104, score=54.3)
-- Incident INC-0010-1 -> stp_topology_change (device=192.168.1.104, score=101.3)
-- Incident INC-0011 -> power (device=192.168.1.104, score=217.3)
+- Incident INC-0001-1 -> bgp (device=Core-8325-01, score=136.3)
+- Incident INC-0003 -> transceiver (device=Dist-6300-01, score=192.2)
+- Incident INC-0004 -> ssh_source_blocked (device=Core-8325-01, score=52.0)
+- Incident INC-0005 -> dot1x_failure (device=Access-6100-02, score=54.3)
+- Incident INC-0006 -> power (device=Core-8325-01, score=218.2)
+- Incident INC-0007 -> crc_errors (device=Access-6100-03, score=188.9)
 
 ## Incident Overview
-- INC-0004-1: events=2, duration=971.0s, primary_issue=dot1x_failure
-- INC-0010-1: events=3, duration=188.0s, primary_issue=stp_topology_change
-- INC-0011: events=2, duration=89.0s, primary_issue=power
+- INC-0001-1: events=3, duration=285.0s, primary_issue=bgp
+- INC-0003: events=16, duration=190.0s, primary_issue=transceiver
+- INC-0004: events=2, duration=4.0s, primary_issue=ssh_source_blocked
+- INC-0005: events=2, duration=6.0s, primary_issue=dot1x_failure
+- INC-0006: events=5, duration=12.0s, primary_issue=power
+- INC-0007: events=4, duration=10.0s, primary_issue=crc_errors
 
 ## Detailed Incident Chains
-### INC-0004-1
+### INC-0001-1
+**Failure Sequence:**
+- config_change (info)
+- bgp (warning)
+
+**Recovery Sequence:**
+- ntp (info)
+
+*Status: Resolved*
+*Duration: 285.0s*
+
+### INC-0003
+**Failure Sequence:**
+- transceiver (info)
+- interface_down (info)
+- interface_down (info)
+- ospf_neighbor_down (info)
+- ospf_neighbor_down (warning)
+- ospf (info)
+- ospf (info)
+- bgp (warning)
+- bgp (info)
+
+**Recovery Sequence:**
+- transceiver (info)
+- interface_up (info)
+- interface_up (info)
+- ospf (info)
+- ospf (info)
+- bgp (info)
+- bgp (info)
+
+*Status: Resolved*
+*Duration: 190.0s*
+
+### INC-0004
+**Failure Sequence:**
+- ssh_bruteforce (warning)
+- ssh_source_blocked (critical)
+
+*Status: Active*
+*Duration: 4.0s*
+
+### INC-0005
 **Failure Sequence:**
 - dot1x_failure (error)
-- dot1x_logout (info)
+- port_blocked (warning)
 
-*Duration: 971.0s*
+*Status: Active*
+*Duration: 6.0s*
 
-### INC-0010-1
-**Failure Sequence:**
-- stp_topology_change (info)
-- stp_topology_change (warning)
-- ospf_neighbor_down (warning)
-
-*Duration: 188.0s*
-
-### INC-0011
+### INC-0006
 **Failure Sequence:**
 - power (critical)
 - fan (warning)
+- thermal (warning)
+- thermal (warning)
+- thermal (critical)
 
-*Duration: 89.0s*
+*Status: Active*
+*Duration: 12.0s*
+
+### INC-0007
+**Failure Sequence:**
+- crc_errors (warning)
+- interface_down (info)
+- interface_down (info)
+- lldp (info)
+
+*Status: Active*
+*Duration: 10.0s*
 
 ## Routine & Unlinked Noise
 The following events were classified as non-actionable noise or routine informational activity:
 
-- 192.168.1.104: snmp (info) - Connection with 192.168.1.50 closed
-- 192.168.1.104: interface_up (info) - Port 1/1/1 is now on-line
-- 192.168.1.104: vlan (info) - Vlan 10 is created
-- 192.168.1.104: mac_auth_success (info) - MAC-Auth: Client 00:AA:BB:CC:DD:EE successfully authenticated on port 1/1/4
-- 192.168.1.104: admin_auth_failure (warning) - Authentication failure for user admin from 192.168.1.99
-- 192.168.1.104: interface_down (info) - Port 1/1/2 is now off-line
-- 192.168.1.104: crc_errors (warning) - Port 1/1/12: Excessive CRC errors detected
-- 192.168.1.104: transceiver (info) - Transceiver inserted in port 1/1/48
-- 192.168.1.104: lldp (info) - LLDP neighbor 00:25:B3:11:22:33 discovered on port 1/1/10
-- 192.168.1.104: ssh_bruteforce (critical) - SSH login failed from IP 203.0.113.5: Maximum attempts exceeded
-- 192.168.1.104: config_change (info) - Configuration changed by user 'admin' via ssh from 192.168.1.50
-- 192.168.1.104: ntp (info) - NTP synchronized to time server 132.163.97.5
+- Core-8325-01: lldp (info) - LLDP neighbor discovered on port 1/1/10
+- Core-8325-01: snmp (info) - Connection with 192.168.1.50 closed
+- Core-8325-01: raw (info) - SSH access granted for user admin from 192.168.1.50
+- Core-8325-01: ntp (info) - Time synchronized with server 192.168.1.1
+- Core-8325-01: snmp (info) - SNMP session established with 192.168.1.50
+- Core-8325-01: raw (info) - Running configuration modified by user admin
+- Core-8325-01: ntp (info) - Time synchronized with server 192.168.1.1
+- Core-8325-01: raw (info) - Startup configuration updated
+- Core-8325-01: ntp (info) - Time synchronized with server 192.168.1.1
+- Access-6100-01: mac_auth (info) - MAC Authentication successful for client 00:11:22:33:44:55
+- Access-6100-01: mac_auth (info) - MAC Authentication successful for client 00:22:33:44:55:66
+- Core-8325-01: vlan (info) - VLAN 200 created
+- Access-6100-01: lldp (info) - LLDP neighbor discovered on port 1/1/12
+- Access-6100-04: interface_up (info) - Port 1/1/20 is now on-line
+- Access-6100-04: interface_up (info) - Port 1/1/21 is now on-line
 
 ## Confidence and Limitations
 - Causality is inferred from temporal and contextual heuristics, not strict proof.

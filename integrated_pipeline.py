@@ -97,14 +97,29 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     # Standard syslog patterns
                     ("power",               ["power supply", "psu"]),
                     ("fan",                 ["fan tray", "fan speed"]),
+                    ("thermal",             ["temperature", "thermal"]),
+                    ("linecard_disabled",   ["linecard slot", "disabled due to"]),
                     ("crc_errors",          ["crc error", "excessive crc"]),
-                    ("interface_down",      ["off-line", "offline", "link down", "is down"]),
-                    ("interface_up",        ["on-line", "online", "link up"]),
-                    ("stp_topology_change", ["topology change", "mstp", "forwarding", "learning"]),
+                    ("interface_down",      ["off-line", "offline", "link down", "is down", "operational status changed to down"]),
+                    ("interface_up",        ["on-line", "online", "link up", "operational status changed to up"]),
+                    ("stp_topology_change", ["topology change", "mstp", "recalculating spanning tree", "spanning tree"]),
+                    ("ospf_interface_down", ["ospf interface", "ptp to down"]),
+                    ("ospf_interface_up",   ["ospf interface", "down to ptp"]),
+                    ("ospf_neighbor_down",  ["ospf neighbor", "full to down"]),
+                    ("ospf_neighbor_up",    ["ospf neighbor", "down to full"]),
+                    ("route_recalculation_started",   ["routing table recalculation started"]),
+                    ("route_recalculation_completed", ["routing table recalculation completed"]),
+                    ("routes_withdrawn",    ["routes withdrawn"]),
                     ("ospf",                ["ospf"]),
+                    ("bgp_session_lost",    ["bgp peer", "session lost"]),
+                    ("bgp_session_established", ["bgp peer", "session established"]),
+                    ("route_withdrawal",    ["route withdrawal"]),
+                    ("routes_relearned",    ["routes successfully relearned"]),
                     ("bgp",                 ["bgp"]),
                     ("dot1x_failure",       ["802.1x", "authentication failed"]),
-                    ("mac_auth",            ["mac-auth"]),
+                    ("port_blocked",        ["blocked due to repeated"]),
+                    ("mac_auth",            ["mac-auth", "mac authentication"]),
+                    ("ssh_source_blocked",  ["ssh source", "blocked after maximum"]),
                     ("ssh_bruteforce",      ["ssh login failed", "maximum attempts"]),
                     ("admin_auth_failure",  ["authentication failure for user"]),
                     ("config_change",       ["configuration changed"]),
@@ -128,7 +143,6 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     # --- Extract timestamp ---
                     event_time = None
                     try:
-                        from datetime import datetime, timezone
                         ts_str = chunk[:15]
                         current_year = datetime.now(timezone.utc).year
                         parsed = datetime.strptime(f"{current_year} {ts_str}", "%Y %b %d %H:%M:%S")
@@ -160,17 +174,17 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                         if any(kw in chunk_lower for kw in keywords):
                             detected_subtype = st
                             # Map to high-level type
-                            if st in ("power", "fan"):
+                            if st in ("power", "fan", "thermal", "linecard_disabled"):
                                 detected_type = "hardware"
                             elif st in ("crc_errors", "interface_down", "interface_up", "transceiver"):
                                 detected_type = "physical_link"
                             elif st in ("stp_topology_change",):
                                 detected_type = "topology"
-                            elif st in ("ospf", "bgp"):
+                            elif st in ("ospf", "bgp", "ospf_interface_down", "ospf_interface_up", "ospf_neighbor_down", "ospf_neighbor_up", "route_recalculation_started", "route_recalculation_completed", "bgp_session_lost", "bgp_session_established", "route_withdrawal", "routes_relearned", "routes_withdrawn"):
                                 detected_type = "routing"
-                            elif st in ("dot1x_failure", "mac_auth"):
+                            elif st in ("dot1x_failure", "mac_auth", "port_blocked"):
                                 detected_type = "access_control"
-                            elif st in ("ssh_bruteforce", "admin_auth_failure"):
+                            elif st in ("ssh_bruteforce", "admin_auth_failure", "ssh_source_blocked"):
                                 detected_type = "security"
                             elif st in ("config_change",):
                                 detected_type = "configuration"
@@ -325,13 +339,19 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
     roots = causal_summary.get("root_causes", [])
     devices = causal_summary.get("affected_devices", [])
 
+    workflow_incidents = causal_summary.get("workflow_incidents", [])
+    causal_incidents = causal_summary.get("incidents", [])
+    report_incidents = causal_incidents if causal_incidents else (timeline_incidents if not workflow_incidents and not causal_summary.get("noise_incidents") else [])
+
+    total_incidents = len(report_incidents)
+
     lines = [
         "# Network Incident Investigation Report",
         "",
         f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}",
         "",
         "## Executive Summary",
-        f"- Total incidents reconstructed: {len(timeline_incidents)}",
+        f"- Total incidents reconstructed: {total_incidents}",
         f"- Total events analyzed: {total_events}",
         f"- Total causal links inferred: {total_links}",
         f"- Affected devices: {', '.join(devices) if devices else 'N/A'}",
@@ -354,9 +374,10 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
         "",
         "## Incident Overview",
     ])
-    causal_incidents = causal_summary.get("incidents", [])
-    report_incidents = causal_incidents if causal_incidents else timeline_incidents
-
+    
+    if not report_incidents:
+        lines.append("- No actionable incidents detected.")
+    
     for inc in report_incidents:
         root = inc.get("root_cause") or {}
         # Derive primary_issue from root cause subtype, then incident_type, then domain
@@ -401,8 +422,53 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
                 sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
                 lines.append(f"- {sub} ({e.get('severity', 'info')})")
         
-        lines.append(f"\n*Duration: {duration}s*\n")
+        status = inc.get('status', '')
+        if status:
+            lines.append(f"\n*Status: {status}*")
+        lines.append(f"*Duration: {duration}s*\n")
         
+    if workflow_incidents:
+        lines.extend([
+            "## Operational Workflows Detected",
+            ""
+        ])
+        for inc in workflow_incidents:
+            iid = inc.get('incident_id', 'N/A')
+            events = inc.get('events', [])
+            
+            # Collapse repeated adjacent events for cleaner summary
+            collapsed_events = []
+            for e in events:
+                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
+                sev = e.get('severity', 'info')
+                evt_str = f"{sub} ({sev})"
+                if collapsed_events and collapsed_events[-1]['str'] == evt_str:
+                    collapsed_events[-1]['count'] += 1
+                else:
+                    collapsed_events.append({'str': evt_str, 'count': 1})
+            
+            lines.append(f"### Workflow: {iid}")
+            lines.append("- **Status:** Successful")
+            lines.append("- **Incident Detected:** No")
+            lines.append("- **Sequence Summary:**")
+            for item in collapsed_events:
+                count_str = f" x{item['count']}" if item['count'] > 1 else ""
+                lines.append(f"  - {item['str']}{count_str}")
+            lines.append("")
+
+    alert_incidents = causal_summary.get("alert_incidents", [])
+    if alert_incidents:
+        lines.extend([
+            "## Standalone Alerts",
+            "The following high-severity events were detected but do not appear to be part of a larger cascading incident:",
+            ""
+        ])
+        for inc in alert_incidents:
+            for e in inc.get('events', []):
+                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
+                lines.append(f"- {e.get('device', 'unknown')}: {sub} ({e.get('severity', 'info')}) - {e.get('message', '')}")
+        lines.append("")
+
     noise_incidents = causal_summary.get("noise_incidents", [])
     if noise_incidents:
         lines.extend([
@@ -439,6 +505,8 @@ def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
     affected_devices = set()
 
     noise_incidents = []
+    workflow_incidents = []
+    alert_incidents = []
     
     for incident in timeline_incidents:
 
@@ -448,6 +516,12 @@ def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
         for result in results:
             if result.get("classification") == "informational":
                 noise_incidents.append(result)
+                continue
+            elif result.get("classification") == "operational_workflow":
+                workflow_incidents.append(result)
+                continue
+            elif result.get("classification") == "standalone_alert":
+                alert_incidents.append(result)
                 continue
             incident_results.append(result)
 
@@ -479,6 +553,8 @@ def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
         "root_causes": root_causes,
         "incidents": incident_results,
         "noise_incidents": noise_incidents,
+        "workflow_incidents": workflow_incidents,
+        "alert_incidents": alert_incidents,
     }
 
 

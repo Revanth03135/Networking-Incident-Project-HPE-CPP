@@ -597,3 +597,45 @@ The pipeline is designed to work **without any LLM** by passing `--no-llm`:
 > - **Production-safe clustering**: The timeline reconstruction uses domain compatibility matrices and capped windows to prevent false merging of unrelated events on the same device
 > - **Hallucination resistance**: The summarizer prompt explicitly prohibits inventing topology, hardware failures, or claiming "confirmed root cause"
 > - **Graceful degradation**: Every stage has fallback behavior for when LLMs are unavailable
+
+# Final Capabilities Showcase
+
+## 1. Graph-Partitioned Causal Clustering (Louvain)
+Instead of relying on rigid, time-boxed grouping, the pipeline now constructs a true "compatibility graph" across the topology. Using Louvain community detection, we accurately group interconnected failure events, even if they span different layers (Physical -> Link -> Routing -> BGP).
+
+## 2. Granular Routing Extraction
+Using the fallback schema generator, generic `ospf` and `bgp` logs are mapped to explicit, high-level states:
+- `ospf_interface_down` / `ospf_neighbor_down`
+- `route_recalculation_started`
+- `bgp_session_lost` / `route_withdrawal`
+This allows network operations teams to immediately understand *where* in the routing lifecycle the convergence is currently stuck.
+
+## 3. Four-Tier Classification Engine
+Events are cleanly categorized so operators aren't spammed with noise:
+1. **Actionable Cascades**: True multi-layered incidents (`transceiver` failure causing `bgp` drops).
+2. **Operational Workflows**: Routine, purely informational events (like VXLAN tunnel initializations) that cluster together natively without alerting.
+3. **Standalone Alerts**: Single critical warnings (like `ssh_bruteforce` blocks or `dot1x_failure` blocks) that do not cascade, but require an engineer's attention.
+4. **Routine Noise**: Completely filtered (NTP syncs, basic VLAN creations, SNMP connections) to keep the final report pristine.
+
+## 4. Intelligent Flap & Recovery Resolution
+When the pipeline detects a network anomaly (like a fiber cut) followed by a mirrored recovery sequence (like fiber restoration), it correctly correlates them into a single incident. Instead of dismissing it as an operational workflow or a generic info stream, it flags the outage as a **Resolved Incident**.
+
+```markdown
+### INC-0003
+**Failure Sequence:**
+- transceiver (info)
+- interface_down (info)
+- ospf_neighbor_down (warning)
+- bgp (warning)
+
+**Recovery Sequence:**
+- transceiver (info)
+- interface_up (info)
+- ospf (info)
+- bgp (info)
+
+*Status: Resolved*
+*Duration: 190.0s*
+```
+
+This perfectly mirrors how NOC and TAC teams report network outages and recoveries!
