@@ -98,7 +98,7 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     ("power_failure",          ["power supply", "psu failure", "psu failed", "power failure"]),
                     ("fan_failure",            ["fan tray", "fan failure", "fan stopped", "speed out of normal range", "fan tray failed"]),
                     ("fan_nominal",            ["speed nominal", "fan nominal"]),
-                    ("thermal",              ["temperature critical", "thermal protection"]),
+                    ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                     ("linecard_disabled",    ["linecard slot", "disabled due to"]),
                     ("crc_errors",           ["crc error", "excessive crc"]),
                     ("interface_down",       ["off-line", "offline", "link down", "is down", "operational status changed to down"]),
@@ -106,13 +106,13 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     ("stp_topology_change",  ["topology change", "mstp", "recalculating spanning tree", "spanning tree"]),
                     ("ospf_interface_down",  ["ptp to down"]),
                     ("ospf_interface_up",    ["down to ptp"]),
-                    ("ospf_neighbor_down",   ["full to down"]),
-                    ("ospf_neighbor_up",     ["down to full"]),
+                    ("ospf_neighbor_down",   ["full to down", "rpd_ospf_nbrdown", "ospf-5-adjchg", "down"]),
+                    ("ospf_neighbor_up",     ["down to full", "rpd_ospf_nbrup", "ospf-5-adjchg", "up"]),
                     ("route_recalculation_started",   ["routing table recalculation started"]),
                     ("route_recalculation_completed", ["routing table recalculation completed"]),
                     ("routes_withdrawn",    ["routes withdrawn"]),
-                    ("bgp_session_lost",     ["session lost", "session down", "hold timer expired"]),
-                    ("bgp_session_established", ["session established"]),
+                    ("bgp_session_lost",     ["session lost", "session down", "hold timer expired", "bgp-5-adjchange", "down"]),
+                    ("bgp_session_established", ["session established", "bgp-5-adjchange", "up"]),
                     ("route_withdrawal",     ["route withdrawal"]),
                     ("routes_relearned",     ["routes successfully relearned"]),
                     ("bgp",                  ["bgp"]),
@@ -184,44 +184,73 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     m_sev = _severity_bracket.search(chunk)
                     if m_sev:
                         severity = _SEVERITY_MAP.get(m_sev.group(2).lower(), m_sev.group(2).lower())
+                    else:
+                        # Fallback for Cisco like %LINK-3-UPDOWN
+                        m_cisco = _re.search(r'%[A-Z_]+-(\d)-', chunk)
+                        if m_cisco:
+                            sev_num = int(m_cisco.group(1))
+                            if sev_num <= 2: severity = "critical"
+                            elif sev_num == 3: severity = "error"
+                            elif sev_num == 4: severity = "warning"
+                            else: severity = "info"
 
                     # --- Detect subtype from content ---
                     chunk_lower = chunk.lower()
                     detected_subtype = "raw"
                     detected_type = "log"
                     for st, keywords in _SUBTYPE_RULES:
-                        if any(kw in chunk_lower for kw in keywords):
-                            detected_subtype = st
-                            # Map to high-level type
-                            if st in ("power_failure", "fan_failure", "fan_nominal", "thermal", "linecard_disabled"):
-                                detected_type = "hardware"
-                            elif st in ("crc_errors", "interface_down", "interface_up", "transceiver"):
-                                detected_type = "physical_link"
-                            elif st in ("stp_topology_change",):
-                                detected_type = "topology"
-                            elif st in ("ospf", "bgp", "ospf_interface_down", "ospf_interface_up", "ospf_neighbor_down", "ospf_neighbor_up", "route_recalculation_started", "route_recalculation_completed", "bgp_session_lost", "bgp_session_established", "route_withdrawal", "routes_relearned", "routes_withdrawn"):
-                                detected_type = "routing"
-                            elif st in ("dot1x_failure", "mac_auth", "mac_auth_success", "port_blocked"):
-                                detected_type = "access_control"
-                            elif st in ("ssh_bruteforce", "admin_auth_failure", "ssh_source_blocked", "acl_deny", "arp_spoofing", "mac_flap", "radius_recovered"):
-                                detected_type = "security"
-                            elif st in ("config_change",):
-                                detected_type = "configuration"
-                            elif st in ("lldp", "vlan"):
-                                detected_type = "inventory"
-                            elif st in ("ntp", "snmp"):
-                                detected_type = "service"
-                            elif st in ("tunnel_nexthop_delete", "tunnel_nexthop_add", "tunnel_activating", "tunnel_operational", "vtep_operational", "vni_create", "vxlan_interface"):
-                                detected_type = "tunnel"
-                            elif st in ("high_cpu", "high_memory", "queue_drop", "buffer_overflow"):
-                                detected_type = "performance"
-                            elif st in ("vrrp_state_change", "hsrp_state_change", "mlag_peer_down"):
-                                detected_type = "high_availability"
-                            elif st in ("ipsec_tunnel_down", "ike_failure"):
-                                detected_type = "vpn"
-                            elif st in ("pim_neighbor_down", "igmp_snooping_error"):
-                                detected_type = "multicast"
-                            break
+                        if st in ("ospf_neighbor_down", "ospf_neighbor_up", "bgp_session_lost", "bgp_session_established"):
+                            proto = "ospf" if "ospf" in st else "bgp"
+                            if proto in chunk_lower and any(kw in chunk_lower for kw in keywords):
+                                detected_subtype = st
+                                break
+                        else:
+                            if any(kw in chunk_lower for kw in keywords):
+                                detected_subtype = st
+                                break
+
+                    if detected_subtype != "raw":
+                        st = detected_subtype
+                        # Map to high-level type
+                        if st in ("power_failure", "fan_failure", "fan_nominal", "thermal", "linecard_disabled"):
+                            detected_type = "hardware"
+                        elif st in ("crc_errors", "interface_down", "interface_up", "transceiver"):
+                            detected_type = "physical_link"
+                        elif st in ("stp_topology_change",):
+                            detected_type = "topology"
+                        elif st in ("ospf", "bgp", "ospf_interface_down", "ospf_interface_up", "ospf_neighbor_down", "ospf_neighbor_up", "route_recalculation_started", "route_recalculation_completed", "bgp_session_lost", "bgp_session_established", "route_withdrawal", "routes_relearned", "routes_withdrawn"):
+                            detected_type = "routing"
+                        elif st in ("dot1x_failure", "mac_auth", "mac_auth_success", "port_blocked"):
+                            detected_type = "access_control"
+                        elif st in ("ssh_bruteforce", "admin_auth_failure", "ssh_source_blocked", "acl_deny", "arp_spoofing", "mac_flap", "radius_recovered"):
+                            detected_type = "security"
+                        elif st in ("config_change",):
+                            detected_type = "configuration"
+                        elif st in ("lldp", "vlan"):
+                            detected_type = "inventory"
+                        elif st in ("ntp", "snmp"):
+                            detected_type = "service"
+                        elif st in ("tunnel_nexthop_delete", "tunnel_nexthop_add", "tunnel_activating", "tunnel_operational", "vtep_operational", "vni_create", "vxlan_interface"):
+                            detected_type = "tunnel"
+                        elif st in ("high_cpu", "high_memory", "queue_drop", "buffer_overflow"):
+                            detected_type = "performance"
+                        elif st in ("vrrp_state_change", "hsrp_state_change", "mlag_peer_down"):
+                            detected_type = "high_availability"
+                        elif st in ("ipsec_tunnel_down", "ike_failure"):
+                            detected_type = "vpn"
+                        elif st in ("pim_neighbor_down", "igmp_snooping_error"):
+                            detected_type = "multicast"
+
+                    # --- Semantic Severity Overrides ---
+                    if detected_subtype in ("interface_up", "ospf_interface_up", "ospf_neighbor_up", "bgp_session_established", "routes_relearned", "radius_recovered", "fan_nominal"):
+                        severity = "info"
+                    elif detected_subtype in ("interface_down", "ospf_interface_down", "ospf_neighbor_down", "bgp_session_lost", "power_failure", "fan_failure", "thermal", "crc_errors", "ssh_bruteforce", "dot1x_failure", "linecard_disabled"):
+                        if detected_subtype in ("power_failure", "thermal", "linecard_disabled"):
+                            severity = "critical"
+                        elif detected_subtype in ("dot1x_failure", "crc_errors"):
+                            severity = "error"
+                        else:
+                            severity = "warning"
 
                     # --- Extract interface/port ---
                     interface_id = None
@@ -370,7 +399,13 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
 
     workflow_incidents = causal_summary.get("workflow_incidents", [])
     causal_incidents = causal_summary.get("incidents", [])
+    alert_incidents = causal_summary.get("alert_incidents", [])
     report_incidents = causal_incidents if causal_incidents else (timeline_incidents if not workflow_incidents and not causal_summary.get("noise_incidents") else [])
+    
+    # Ensure standalone alerts (like dropped BGP events) are included in the report
+    for alert in alert_incidents:
+        if alert not in report_incidents:
+            report_incidents.append(alert)
 
     total_incidents = len(report_incidents)
 
@@ -442,14 +477,18 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
             lines.append("**Failure Sequence:**")
             for e in failures:
                 sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
-                lines.append(f"- {sub} ({e.get('severity', 'info')})")
+                dup = e.get('duplicate_count', 1)
+                dup_str = f" ×{dup}" if dup > 1 else ""
+                lines.append(f"- {sub}{dup_str} ({e.get('severity', 'info')})")
         
         if recoveries:
             lines.append("")
             lines.append("**Recovery Sequence:**")
             for e in recoveries:
                 sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
-                lines.append(f"- {sub} ({e.get('severity', 'info')})")
+                dup = e.get('duplicate_count', 1)
+                dup_str = f" ×{dup}" if dup > 1 else ""
+                lines.append(f"- {sub}{dup_str} ({e.get('severity', 'info')})")
         
         status = inc.get('status', '')
         if status:

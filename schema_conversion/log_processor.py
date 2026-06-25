@@ -814,7 +814,7 @@ class LogProcessor:
                 ("power_failure",          ["power supply", "psu failure", "psu failed", "power failure"]),
                 ("fan_failure",            ["fan failure", "fan stopped", "speed out of normal range", "fan tray failed"]),
                 ("fan_nominal",            ["speed nominal", "fan nominal"]),
-                ("thermal",              ["temperature critical", "thermal protection"]),
+                ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                 ("linecard_disabled",    ["linecard slot", "disabled due to"]),
                 ("crc_errors",           ["crc error", "excessive crc"]),
                 ("interface_down",       ["off-line", "offline", "link down", "is down", "state to down", "changed state to down", "operational status changed to down"]),
@@ -909,10 +909,17 @@ class LogProcessor:
             detected_type = "log"
             msg_lower = core_message.lower()
             for st, keywords in _SUBTYPE_RULES:
-                if any(kw in msg_lower for kw in keywords):
-                    detected_subtype = st
-                    detected_type = _TYPE_MAP.get(st, "log")
-                    break
+                if st in ("ospf_neighbor_down", "ospf_neighbor_up", "bgp_session_lost", "bgp_session_established"):
+                    proto = "ospf" if "ospf" in st else "bgp"
+                    if proto in msg_lower and any(kw in msg_lower for kw in keywords):
+                        detected_subtype = st
+                        detected_type = _TYPE_MAP.get(st, "log")
+                        break
+                else:
+                    if any(kw in msg_lower for kw in keywords):
+                        detected_subtype = st
+                        detected_type = _TYPE_MAP.get(st, "log")
+                        break
 
             # --- Extract interface/port ---
             interface_id = None

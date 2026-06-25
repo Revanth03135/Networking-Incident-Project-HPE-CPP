@@ -1,0 +1,507 @@
+
+============================================================
+=== final_demo.log ===
+============================================================
+
+2026-09-01T10:00:01Z Core-8325-01 ntpd[801]: [daemon.info] NTP synchronized with server 192.168.1.1
+2026-09-01T10:00:05Z Core-8325-01 hpe-config[512]: [config.info] Configuration saved by user admin
+2026-09-01T10:00:08Z Access-6100-01 hpe-authd[589]: [auth.info] MAC Authentication successful for client 00:11:22:33:44:55
+
+2026-09-01T10:01:00Z Dist-6300-01 hpe-cardd[505]: [hw.notice] Transceiver on port 1/1/24 removed or signal lost
+2026-09-01T10:01:01Z Dist-6300-01 hpe-port-mgr[564]: [port.info] Link down on interface 1/1/24
+2026-09-01T10:01:02Z Dist-6300-01 ops-init[401]: [interface.info] Interface 1/1/24 operational status changed to DOWN
+2026-09-01T10:01:03Z Dist-6300-01 hpe-routing[645]: [ospf.notice] OSPF interface 1/1/24 state changed from PtP to Down
+2026-09-01T10:01:04Z Dist-6300-01 hpe-routing[645]: [ospf.warn] OSPF neighbor 10.254.1.2 changed state from FULL to DOWN
+2026-09-01T10:01:05Z Dist-6300-01 hpe-routing[645]: [ospf.info] Routing table recalculation started
+2026-09-01T10:01:06Z Dist-6300-01 hpe-routing[645]: [ospf.info] Routing table recalculation completed
+2026-09-01T10:01:08Z Dist-6300-01 hpe-routing[645]: [bgp.warn] BGP peer 172.16.1.1 session lost
+2026-09-01T10:01:10Z Dist-6300-01 hpe-routing[645]: [bgp.notice] Route withdrawal initiated
+
+2026-09-01T10:01:20Z Core-8325-01 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.10
+2026-09-01T10:01:22Z Core-8325-01 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.10
+2026-09-01T10:01:24Z Core-8325-01 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.10
+2026-09-01T10:01:26Z Core-8325-01 hpe-security[710]: [security.crit] SSH source 203.0.113.10 blocked after maximum failed attempts
+
+2026-09-01T10:02:00Z Access-6100-02 hpe-authd[589]: [auth.err] 802.1X authentication failed for client 00:AA:BB:CC:DD:01 on port 1/1/5
+2026-09-01T10:02:02Z Access-6100-02 hpe-authd[589]: [auth.err] 802.1X authentication failed for client 00:AA:BB:CC:DD:01 on port 1/1/5
+2026-09-01T10:02:04Z Access-6100-02 hpe-authd[589]: [auth.err] 802.1X authentication failed for client 00:AA:BB:CC:DD:01 on port 1/1/5
+2026-09-01T10:02:06Z Access-6100-02 hpe-security[710]: [security.warn] Port 1/1/5 blocked due to repeated authentication failures
+
+2026-09-01T10:02:15Z Core-8325-01 hpe-ptm[505]: [hw.crit] Power supply PSU-2 failure detected
+2026-09-01T10:02:18Z Core-8325-01 hpe-ptm[505]: [hw.warn] Fan tray 1 speed out of normal range
+2026-09-01T10:02:21Z Core-8325-01 hpe-thermal[501]: [thermal.warn] Internal temperature exceeded warning threshold
+2026-09-01T10:02:24Z Core-8325-01 hpe-system[502]: [system.warn] System entered thermal protection mode
+2026-09-01T10:02:27Z Core-8325-01 hpe-system[502]: [system.crit] Linecard slot 2 disabled due to thermal condition
+2026-09-01T10:02:30Z Core-8325-01 hpe-routing[645]: [bgp.warn] BGP peer 10.10.10.1 session lost
+
+2026-09-01T10:03:00Z Access-6100-03 hpe-port-mgr[564]: [port.warn] Excessive CRC errors detected on interface 1/1/48
+2026-09-01T10:03:03Z Access-6100-03 hpe-port-mgr[564]: [port.warn] Excessive CRC errors detected on interface 1/1/48
+2026-09-01T10:03:06Z Access-6100-03 hpe-port-mgr[564]: [port.info] Link down on interface 1/1/48
+2026-09-01T10:03:08Z Access-6100-03 ops-init[401]: [interface.info] Interface 1/1/48 operational status changed to DOWN
+2026-09-01T10:03:10Z Access-6100-03 hpe-lldpd[612]: [lldp.notice] LLDP neighbor removed from port 1/1/48
+
+2026-09-01T10:03:15Z Core-8325-01 hpe-vlan-mgr[568]: [vlan.info] VLAN 200 created
+2026-09-01T10:03:20Z Core-8325-01 hpe-lldpd[612]: [lldp.info] LLDP neighbor discovered on port 1/1/10
+2026-09-01T10:03:25Z Core-8325-01 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed
+2026-09-01T10:03:30Z Core-8325-01 ntpd[801]: [daemon.info] NTP synchronized with server 192.168.1.1
+
+2026-09-01T10:04:00Z Dist-6300-01 hpe-cardd[505]: [hw.notice] Transceiver inserted on port 1/1/24
+2026-09-01T10:04:01Z Dist-6300-01 hpe-port-mgr[564]: [port.info] Link up on interface 1/1/24
+2026-09-01T10:04:02Z Dist-6300-01 ops-init[401]: [interface.info] Interface 1/1/24 operational status changed to UP
+2026-09-01T10:04:03Z Dist-6300-01 hpe-routing[645]: [ospf.notice] OSPF interface 1/1/24 state changed from Down to PtP
+2026-09-01T10:04:05Z Dist-6300-01 hpe-routing[645]: [ospf.info] OSPF neighbor 10.254.1.2 changed state from DOWN to FULL
+2026-09-01T10:04:07Z Dist-6300-01 hpe-routing[645]: [bgp.info] BGP peer 172.16.1.1 session established
+2026-09-01T10:04:10Z Dist-6300-01 hpe-routing[645]: [bgp.info] Routes successfully relearned
+
+2026-09-01T10:04:20Z Core-8325-01 hpe-security[710]: [security.info] SSH access granted for user admin from 192.168.1.50
+2026-09-01T10:04:25Z Core-8325-01 hpe-config[512]: [config.info] Running configuration modified by user admin
+2026-09-01T10:04:30Z Core-8325-01 hpe-config[512]: [config.info] Startup configuration updated
+
+2026-09-01T10:04:40Z Access-6100-01 hpe-authd[589]: [auth.info] MAC Authentication successful for client 00:22:33:44:55:66
+2026-09-01T10:04:45Z Access-6100-01 hpe-lldpd[612]: [lldp.info] LLDP neighbor discovered on port 1/1/12
+2026-09-01T10:04:50Z Core-8325-01 ntpd[801]: [daemon.info] Time synchronized with server 192.168.1.1
+2026-09-01T10:04:55Z Core-8325-01 snmpd[841]: [daemon.notice] SNMP session established with 192.168.1.50
+
+2026-09-01T10:05:00Z Access-6100-04 hpe-port-mgr[564]: [port.info] Port 1/1/20 is now on-line
+2026-09-01T10:05:05Z Access-6100-04 hpe-port-mgr[564]: [port.info] Port 1/1/21 is now on-line
+
+============================================================
+=== logs.txt ===
+============================================================
+
+May 14 14:02:11 192.168.1.104 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed
+May 14 14:05:01 192.168.1.104 hpe-port-mgr[564]: [port.info] Port 1/1/1 is now on-line
+May 14 14:10:02 192.168.1.104 hpe-vlan-mgr[568]: [vlan.info] Vlan 10 is created
+May 14 14:15:01 192.168.1.104 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client 00:11:22:33:44:55 on port 1/1/5
+May 14 14:20:15 192.168.1.104 hpe-port-mgr[564]: [port.info] Port 1/1/2 is now off-line
+May 14 14:21:02 192.168.1.104 hpe-port-mgr[564]: [port.warn] Port 1/1/12: Excessive CRC errors detected
+May 14 14:22:40 192.168.1.104 hpe-port-mgr[564]: [port.notice] Transceiver inserted in port 1/1/48
+May 14 14:25:11 192.168.1.104 hpe-lldpd[612]: [lldp.info] LLDP neighbor 00:25:B3:11:22:33 discovered on port 1/1/10
+May 14 14:30:45 192.168.1.104 hpe-authd[589]: [auth.info] MAC-Auth: Client 00:AA:BB:CC:DD:EE successfully authenticated on port 1/1/4
+May 14 14:31:12 192.168.1.104 hpe-authd[589]: [auth.notice] 802.1x: Client 00:11:22:33:44:55 logged out from port 1/1/5
+May 14 14:32:01 192.168.1.104 vsftpd[702]: [daemon.warn] Authentication failure for user admin from 192.168.1.99
+May 14 14:35:19 192.168.1.104 hpe-security[710]: [security.crit] SSH login failed from IP 203.0.113.5: Maximum attempts exceeded
+May 14 14:40:02 192.168.1.104 hpe-mstpd[630]: [mstp.notice] Instance 0: Port 1/1/1 changed state from LEARNING to FORWARDING
+May 14 14:40:05 192.168.1.104 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/1
+May 14 14:42:33 192.168.1.104 hpe-routing[645]: [bgp.info] BGP peer 10.10.10.2 session established
+May 14 14:43:10 192.168.1.104 hpe-routing[645]: [ospf.warn] OSPF neighbor 192.168.2.1 on VLAN 20 changed state from FULL to DOWN
+May 14 14:50:00 192.168.1.104 hpe-config[512]: [config.info] Configuration changed by user 'admin' via ssh from 192.168.1.50
+May 14 14:51:15 192.168.1.104 hpe-ptm[505]: [hw.crit] Power supply PSU-2 failure detected
+May 14 14:52:44 192.168.1.104 hpe-ptm[505]: [hw.warn] Fan tray 1 speed out of normal range (High)
+May 14 14:55:01 192.168.1.104 ntp[801]: [daemon.info] NTP synchronized to time server 132.163.97.5
+============================================================
+=== single_test.log ===
+============================================================
+
+May 14 14:00:02 192.168.1.10 ntpd[210]: [daemon.notice] Synchronized to NTP server 10.0.0.1, offset 0.012ms
+May 14 14:02:11 192.168.1.10 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed
+May 14 14:05:01 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/9 is now on-line
+May 14 14:08:33 192.168.1.10 hpe-lldpd[412]: [lldp.info] LLDP neighbor discovered on port 1/1/1: remote device router-1 (10.0.0.2)
+May 14 14:09:01 192.168.1.10 hpe-lldpd[412]: [lldp.info] LLDP neighbor discovered on port 1/1/3: remote device switch-2 (10.0.0.4)
+May 14 14:15:01 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client 00:11:22:33:44:55 on port 1/1/5
+May 14 14:18:47 192.168.1.10 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.5: invalid credentials (attempt 1)
+May 14 14:19:02 192.168.1.10 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.5: invalid credentials (attempt 2)
+May 14 14:19:18 192.168.1.10 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.5: invalid credentials (attempt 3)
+May 14 14:19:35 192.168.1.10 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.5: invalid credentials (attempt 4)
+May 14 14:19:51 192.168.1.10 hpe-security[710]: [security.crit] SSH login failed from IP 203.0.113.5: Maximum attempts exceeded, source IP blocked
+May 14 14:20:15 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/12 is now off-line
+May 14 14:21:02 192.168.1.10 hpe-port-mgr[564]: [port.warn] Port 1/1/12: Excessive CRC errors detected prior to link drop
+May 14 14:35:19 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology change detected, recalculating spanning tree
+May 14 14:42:33 192.168.1.10 hpe-routing[645]: [bgp.info] BGP peer 10.0.0.2 session established
+May 14 14:51:15 192.168.1.10 hpe-ptm[505]: [hw.crit] Power supply PSU-2 failure detected, switching to redundant PSU-1
+May 14 14:51:17 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/1 is now off-line
+May 14 14:51:18 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/2 is now off-line
+May 14 14:51:43 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/1, recalculating spanning tree
+May 14 14:52:44 192.168.1.10 hpe-ptm[505]: [hw.warn] Fan tray 1 speed out of normal range (High) - compensating for PSU-1 load
+May 14 14:54:01 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client AA:BB:CC:DD:EE:FF on port 1/1/8
+May 14 15:03:20 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/1 is now on-line
+May 14 15:03:25 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/2 is now on-line
+May 14 15:04:10 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology converged, no changes
+
+============================================================
+=== test2.log ===
+============================================================
+
+May 20 09:00:05 192.168.1.10 ntpd[210]: [daemon.notice] Synchronized to NTP server 10.0.0.1, offset 0.008ms
+May 20 09:01:12 192.168.1.10 hpe-lldpd[412]: [lldp.info] LLDP neighbor discovered on port 1/1/1: remote device router-1 (10.0.0.2)
+May 20 09:01:40 192.168.1.10 hpe-lldpd[412]: [lldp.info] LLDP neighbor discovered on port 1/1/2: remote device router-2 (10.0.0.6)
+May 20 09:02:15 192.168.1.10 hpe-lldpd[412]: [lldp.info] LLDP neighbor discovered on port 1/1/4: remote device switch-3 (10.0.0.9)
+May 20 09:05:30 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/20 is now on-line
+May 20 09:08:01 192.168.1.10 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed
+May 20 09:12:44 192.168.1.10 hpe-authd[589]: [auth.warn] 802.1x: Authentication retry for client 11:22:33:44:55:66 on port 1/1/15
+May 20 09:14:00 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology change detected on port 1/1/30, recalculating spanning tree
+May 20 09:14:35 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology converged
+May 20 09:20:10 192.168.1.10 hpe-config[300]: [config.notice] Configuration saved by admin via SSH from 192.168.1.200
+May 20 09:25:00 192.168.1.10 hpe-port-mgr[564]: [port.warn] Port 1/1/7: Excessive CRC errors detected (count: 12, threshold: 10)
+May 20 09:25:45 192.168.1.10 hpe-port-mgr[564]: [port.warn] Port 1/1/7: Excessive CRC errors detected (count: 28, threshold: 10)
+May 20 09:26:10 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/7 is now off-line
+May 20 09:26:33 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/7, recalculating spanning tree
+May 20 09:26:50 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/8 is now off-line
+May 20 09:27:02 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/8, recalculating spanning tree
+May 20 09:27:15 192.168.1.10 hpe-routing[645]: [bgp.warn] BGP peer 10.0.0.6 session flapping, 3 transitions in 60s
+May 20 09:28:01 192.168.1.10 hpe-routing[645]: [ospf.warn] OSPF neighbor 192.168.3.1 on VLAN 30 changed state from FULL to DOWN
+May 20 09:30:12 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client AA:11:BB:22:CC:33 on port 1/1/40
+May 20 09:30:18 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client BB:22:CC:33:DD:44 on port 1/1/41
+May 20 09:30:24 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client CC:33:DD:44:EE:55 on port 1/1/42
+May 20 09:30:30 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client DD:44:EE:55:FF:66 on port 1/1/43
+May 20 09:30:36 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client EE:55:FF:66:11:22 on port 1/1/44
+May 20 09:30:42 192.168.1.10 hpe-security[710]: [security.crit] RADIUS server 10.0.9.5 unreachable, switching to backup RADIUS 10.0.9.6
+May 20 09:31:00 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client FF:66:11:22:33:44 on port 1/1/45
+May 20 09:33:00 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/20 is now off-line
+May 20 09:35:10 192.168.1.10 hpe-ptm[505]: [hw.warn] Fan tray 2 speed nominal
+May 20 09:38:00 192.168.1.10 hpe-routing[645]: [bgp.crit] BGP peer 10.0.0.6 session Down, hold timer expired
+May 20 09:40:15 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology converged, root bridge unchanged
+May 20 09:42:30 192.168.1.10 hpe-authd[589]: [auth.info] 802.1x: Authentication succeeded for client AA:11:BB:22:CC:33 on port 1/1/40 (backup RADIUS)
+May 20 09:43:01 192.168.1.10 hpe-authd[589]: [auth.info] 802.1x: Authentication succeeded for client BB:22:CC:33:DD:44 on port 1/1/41 (backup RADIUS)
+May 20 09:50:00 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/7 is now on-line
+May 20 09:50:20 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/8 is now on-line
+May 20 09:50:45 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology converged, no changes
+May 20 09:51:00 192.168.1.10 hpe-routing[645]: [bgp.info] BGP peer 10.0.0.6 session established
+May 20 09:55:00 192.168.1.10 hpe-routing[645]: [ospf.info] OSPF neighbor 192.168.3.1 on VLAN 30 changed state from DOWN to FULL
+May 20 10:02:10 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/20 is now on-line
+May 20 10:05:00 192.168.1.10 hpe-security[710]: [security.warn] SSH login failed from IP 198.51.100.9: invalid credentials (attempt 1)
+May 20 10:05:20 192.168.1.10 hpe-security[710]: [security.warn] SSH login failed from IP 198.51.100.9: invalid credentials (attempt 2)
+May 20 10:05:40 192.168.1.10 hpe-security[710]: [security.crit] SSH login failed from IP 198.51.100.9: Maximum attempts exceeded, source IP blocked
+
+============================================================
+=== test3.log ===
+============================================================
+
+May 20 09:01:50 router-2 rpd[1190]: [daemon.info] LLDP neighbor core-switch (10.0.0.6) discovered on ge-0/0/1
+May 20 09:18:00 router-2 mgd[455]: [mgmt.notice] User admin logged in via SSH from 192.168.1.200
+May 20 09:27:30 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Established to Active
+May 20 09:28:10 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRDOWN: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Full to Down
+May 20 09:38:12 router-2 rpd[1190]: [daemon.warning] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Active to Idle, hold timer expired
+May 20 09:40:00 router-2 chassisd[330]: [chassis.info] Power supply 1 status: ok
+May 20 09:51:15 router-2 rpd[1190]: [daemon.info] BGP_NEIGHBOR_STATE_CHANGED: bgp peer 192.168.1.10 state changed from Idle to Established
+May 20 09:55:20 router-2 rpd[1190]: [daemon.info] RPD_OSPF_NBRUP: OSPF neighbor 192.168.3.1 on ge-0/0/2.0 state changed from Down to Full
+May 20 10:10:00 router-2 chassisd[330]: [hw.warn] Temperature sensor 1 reading elevated: 52C (threshold 65C)
+May 20 10:20:00 router-2 mgd[455]: [mgmt.notice] User admin logged out
+
+============================================================
+=== test4.log ===
+============================================================
+
+May 22 11:00:10 192.168.1.10 ntpd[210]: [daemon.notice] Synchronized to NTP server 10.0.0.1, offset 0.005ms
+May 22 11:05:00 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/20 is now on-line
+May 22 11:10:42 192.168.1.10 hpe-port-mgr[564]: [port.warn] Port 1/1/7: Excessive CRC errors detected (count: 14, threshold: 10)
+May 22 11:11:05 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/7 is now off-line
+May 22 11:11:22 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/7, recalculating spanning tree
+May 22 11:11:40 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/9 is now off-line
+May 22 11:11:55 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/9, recalculating spanning tree
+May 22 11:18:00 192.168.1.10 hpe-authd[589]: [auth.warn] 802.1x: Authentication retry for client 11:22:33:44:55:66 on port 1/1/15
+May 22 11:25:10 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client AA:11:BB:22:CC:33 on port 1/1/40
+May 22 11:25:16 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client BB:22:CC:33:DD:44 on port 1/1/41
+May 22 11:25:22 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client CC:33:DD:44:EE:55 on port 1/1/42
+May 22 11:25:38 192.168.1.10 hpe-security[710]: [security.crit] RADIUS server 10.0.9.5 unreachable, switching to backup RADIUS 10.0.9.6
+May 22 11:30:00 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/7 is now on-line
+May 22 11:30:05 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/9 is now on-line
+May 22 11:40:00 192.168.1.10 hpe-ptm[505]: [hw.info] Power supply 1 status: ok
+
+============================================================
+=== test5.log ===
+============================================================
+
+2026-06-18T17:31:01.100Z Edge-6300-01 hpe-cardd: Event|1105|LOG_INFO|MEMBER|1|Transceiver on port 1/1/24 removed or signal lost
+2026-06-18T17:31:01.105Z Edge-6300-01 portd: Event|2602|LOG_INFO|MEMBER|1|Link down on interface 1/1/24
+2026-06-18T17:31:01.108Z Edge-6300-01 ops-init: Event|1203|LOG_INFO|MEMBER|1|Interface 1/1/24 operational status changed to DOWN
+2026-06-18T17:31:01.111Z Edge-6300-01 hpe-routing: Event|5223|LOG_INFO|MEMBER|1|OSPFv2: Interface 1/1/24 state changed from PtP to Down
+2026-06-18T17:31:01.115Z Edge-6300-01 hpe-routing: Event|5221|LOG_WARN|MEMBER|1|OSPFv2: Neighbor 10.254.1.2 on interface 1/1/24 state changed from Full to Down, Reason: Interface Down
+2026-06-18T17:31:01.120Z Edge-6300-01 hpe-routing: Event|5204|LOG_INFO|MEMBER|1|OSPFv2: Routing table calculation started
+2026-06-18T17:31:01.124Z Edge-6300-01 hpe-routing: Event|5205|LOG_INFO|MEMBER|1|OSPFv2: Routing table calculation completed
+
+============================================================
+=== test6.log ===
+============================================================
+
+Jun 02 08:00:05 192.168.1.10 ntpd[210]: [daemon.notice] Synchronized to NTP server 10.0.0.1, offset 0.006ms
+Jun 02 08:01:12 192.168.1.10 hpe-lldpd[412]: [lldp.info] LLDP neighbor discovered on port 1/1/1: remote device router-1 (10.0.0.2)
+Jun 02 08:01:40 192.168.1.10 hpe-lldpd[412]: [lldp.info] LLDP neighbor discovered on port 1/1/2: remote device router-2 (10.0.0.6)
+Jun 02 08:02:15 192.168.1.10 hpe-lldpd[412]: [lldp.info] LLDP neighbor discovered on port 1/1/4: remote device switch-3 (10.0.0.9)
+Jun 02 08:05:30 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/20 is now on-line
+Jun 02 08:08:01 192.168.1.10 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed
+Jun 02 08:12:44 192.168.1.10 hpe-authd[589]: [auth.warn] 802.1x: Authentication retry for client 11:22:33:44:55:66 on port 1/1/15
+Jun 02 08:14:00 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology change detected on port 1/1/30, recalculating spanning tree
+Jun 02 08:14:35 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology converged
+Jun 02 08:20:10 192.168.1.10 hpe-config[300]: [config.notice] Configuration saved by admin via SSH from 192.168.1.200
+Jun 02 08:25:00 192.168.1.10 hpe-port-mgr[564]: [port.warn] Port 1/1/7: Excessive CRC errors detected (count: 12, threshold: 10)
+Jun 02 08:25:45 192.168.1.10 hpe-port-mgr[564]: [port.warn] Port 1/1/7: Excessive CRC errors detected (count: 28, threshold: 10)
+Jun 02 08:26:10 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/7 is now off-line
+Jun 02 08:26:33 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/7, recalculating spanning tree
+Jun 02 08:26:50 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/8 is now off-line
+Jun 02 08:27:02 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/8, recalculating spanning tree
+Jun 02 08:27:15 192.168.1.10 hpe-routing[645]: [bgp.warn] BGP peer 10.0.0.6 session flapping, 3 transitions in 60s
+Jun 02 08:28:01 192.168.1.10 hpe-routing[645]: [ospf.warn] OSPF neighbor 192.168.3.1 on VLAN 30 changed state from FULL to DOWN
+Jun 02 08:33:00 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/20 is now off-line
+Jun 02 08:35:10 192.168.1.10 hpe-ptm[505]: [hw.warn] Fan tray 2 speed nominal
+Jun 02 08:38:00 192.168.1.10 hpe-routing[645]: [bgp.crit] BGP peer 10.0.0.6 session Down, hold timer expired
+Jun 02 08:50:00 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/7 is now on-line
+Jun 02 08:50:20 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/8 is now on-line
+Jun 02 08:50:45 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 0: Topology converged, no changes
+Jun 02 08:51:00 192.168.1.10 hpe-routing[645]: [bgp.info] BGP peer 10.0.0.6 session established
+Jun 02 08:55:00 192.168.1.10 hpe-routing[645]: [ospf.info] OSPF neighbor 192.168.3.1 on VLAN 30 changed state from DOWN to FULL
+Jun 02 09:02:10 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/20 is now on-line
+Jun 02 09:10:00 192.168.1.10 hpe-port-mgr[564]: [port.warn] Port 1/1/55: Excessive CRC errors detected (count: 11, threshold: 10)
+Jun 02 09:10:30 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/55 is now off-line
+Jun 02 09:10:48 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 1: Topology change detected on port 1/1/55, recalculating spanning tree
+Jun 02 09:11:05 192.168.1.10 hpe-port-mgr[564]: [port.crit] Port 1/1/56 is now off-line
+Jun 02 09:11:20 192.168.1.10 hpe-mstpd[630]: [mstp.warn] Instance 1: Topology change detected on port 1/1/56, recalculating spanning tree
+Jun 02 09:12:00 192.168.1.10 hpe-routing[645]: [ospf.warn] OSPF neighbor 192.168.7.4 on VLAN 90 changed state from FULL to DOWN
+Jun 02 09:18:00 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/55 is now on-line
+Jun 02 09:18:15 192.168.1.10 hpe-port-mgr[564]: [port.info] Port 1/1/56 is now on-line
+Jun 02 09:18:40 192.168.1.10 hpe-mstpd[630]: [mstp.info] Instance 1: Topology converged, no changes
+Jun 02 09:19:00 192.168.1.10 hpe-routing[645]: [ospf.info] OSPF neighbor 192.168.7.4 on VLAN 90 changed state from DOWN to FULL
+Jun 02 09:30:12 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client AA:11:BB:22:CC:33 on port 1/1/40
+Jun 02 09:30:18 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client BB:22:CC:33:DD:44 on port 1/1/41
+Jun 02 09:30:24 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client CC:33:DD:44:EE:55 on port 1/1/42
+Jun 02 09:30:30 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client DD:44:EE:55:FF:66 on port 1/1/43
+Jun 02 09:30:36 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client EE:55:FF:66:11:22 on port 1/1/44
+Jun 02 09:30:42 192.168.1.10 hpe-security[710]: [security.crit] RADIUS server 10.0.9.5 unreachable, switching to backup RADIUS 10.0.9.6
+Jun 02 09:31:00 192.168.1.10 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client FF:66:11:22:33:44 on port 1/1/45
+Jun 02 09:42:30 192.168.1.10 hpe-authd[589]: [auth.info] 802.1x: Authentication succeeded for client AA:11:BB:22:CC:33 on port 1/1/40 (backup RADIUS)
+Jun 02 09:43:01 192.168.1.10 hpe-authd[589]: [auth.info] 802.1x: Authentication succeeded for client BB:22:CC:33:DD:44 on port 1/1/41 (backup RADIUS)
+Jun 02 10:05:00 192.168.1.10 hpe-security[710]: [security.warn] SSH login failed from IP 198.51.100.9: invalid credentials (attempt 1)
+Jun 02 10:05:20 192.168.1.10 hpe-security[710]: [security.warn] SSH login failed from IP 198.51.100.9: invalid credentials (attempt 2)
+Jun 02 10:05:40 192.168.1.10 hpe-security[710]: [security.crit] SSH login failed from IP 198.51.100.9: Maximum attempts exceeded, source IP blocked
+Jun 02 10:30:00 192.168.1.10 hpe-ptm[505]: [hw.info] Power supply 1 status: ok
+
+============================================================
+=== test7.log ===
+============================================================
+
+2026-09-01T10:00:01Z Dist-6300-01 hpe-cardd[505]: [hw.notice] Transceiver on port 1/1/24 removed or signal lost
+2026-09-01T10:00:02Z Dist-6300-01 hpe-port-mgr[564]: [port.info] Link down on interface 1/1/24
+2026-09-01T10:00:03Z Dist-6300-01 ops-init[401]: [interface.info] Interface 1/1/24 operational status changed to DOWN
+2026-09-01T10:00:04Z Dist-6300-01 hpe-routing[645]: [ospf.notice] OSPF interface 1/1/24 state changed from PtP to Down
+2026-09-01T10:00:05Z Dist-6300-01 hpe-routing[645]: [ospf.warn] OSPF neighbor 10.254.1.2 changed state from FULL to DOWN
+2026-09-01T10:00:06Z Dist-6300-01 hpe-routing[645]: [ospf.info] Routing table recalculation started
+2026-09-01T10:00:07Z Dist-6300-01 hpe-routing[645]: [ospf.info] Routing table recalculation completed
+2026-09-01T10:00:08Z Dist-6300-01 hpe-routing[645]: [bgp.warn] BGP peer 172.16.1.1 session lost
+2026-09-01T10:00:09Z Dist-6300-01 hpe-routing[645]: [bgp.notice] Route withdrawal initiated for peer 172.16.1.1
+2026-09-01T10:00:10Z Dist-6300-01 hpe-routing[645]: [bgp.info] 250 routes withdrawn from forwarding table
+============================================================
+=== test_cascade.log ===
+============================================================
+
+Jun 18 09:10:01 192.168.1.104 hpe-cardd[505]: [hw.notice] Transceiver on port 1/1/24 removed or signal lost
+Jun 18 09:10:01 192.168.1.104 hpe-port-mgr[564]: [port.info] Link down on interface 1/1/24
+Jun 18 09:10:02 192.168.1.104 ops-init[401]: [interface.info] Interface 1/1/24 operational status changed to DOWN
+Jun 18 09:10:03 192.168.1.104 hpe-routing[645]: [ospf.notice] OSPF interface 1/1/24 state changed from PtP to Down
+Jun 18 09:10:04 192.168.1.104 hpe-routing[645]: [ospf.warn] OSPF neighbor 10.254.1.2 changed state from FULL to DOWN
+Jun 18 09:10:05 192.168.1.104 hpe-routing[645]: [ospf.info] Routing table recalculation started
+Jun 18 09:10:06 192.168.1.104 hpe-routing[645]: [ospf.info] Routing table recalculation completed
+Jun 18 09:10:08 192.168.1.104 hpe-routing[645]: [bgp.warn] BGP peer 172.16.1.1 session lost
+Jun 18 09:10:10 192.168.1.104 hpe-routing[645]: [bgp.notice] Route withdrawal initiated for peer 172.16.1.1
+
+============================================================
+=== test_demo.log ===
+============================================================
+
+2026-07-12T09:00:01.101Z Core-8325-01 hpe-authd: Event|4101|LOG_INFO|SYSTEM|1|802.1X client 00:11:22:33:44:55 authenticated on port 1/1/10
+2026-07-12T09:00:03.211Z Core-8325-01 lldpd: Event|3101|LOG_INFO|SYSTEM|1|LLDP neighbor discovered on port 1/1/10
+2026-07-12T09:01:15.341Z Core-8325-01 hpe-vlan: Event|2201|LOG_INFO|SYSTEM|1|VLAN 100 created
+2026-07-12T09:05:12.500Z Dist-6300-01 hpe-cardd: Event|1105|LOG_INFO|MEMBER|1|Transceiver on port 1/1/24 removed or signal lost
+2026-07-12T09:05:12.502Z Dist-6300-01 portd: Event|2602|LOG_INFO|MEMBER|1|Link down on interface 1/1/24
+2026-07-12T09:05:12.504Z Dist-6300-01 ops-init: Event|1203|LOG_INFO|MEMBER|1|Interface 1/1/24 operational status changed to DOWN
+2026-07-12T09:05:12.507Z Dist-6300-01 hpe-routing: Event|5223|LOG_INFO|MEMBER|1|OSPFv2: Interface 1/1/24 state changed from PtP to Down
+2026-07-12T09:05:12.510Z Dist-6300-01 hpe-routing: Event|5221|LOG_WARN|MEMBER|1|OSPFv2: Neighbor 10.254.1.2 state changed from Full to Down, Reason: Interface Down
+2026-07-12T09:05:12.514Z Dist-6300-01 hpe-routing: Event|5204|LOG_INFO|MEMBER|1|OSPF route calculation started
+2026-07-12T09:05:12.517Z Dist-6300-01 hpe-routing: Event|5205|LOG_INFO|MEMBER|1|OSPF route calculation completed
+2026-07-12T09:05:16.110Z Dist-6300-01 hpe-routing: Event|6101|LOG_WARN|MEMBER|1|BGP peer 10.10.10.1 session lost
+2026-07-12T09:05:18.005Z Dist-6300-01 hpe-routing: Event|6102|LOG_INFO|MEMBER|1|BGP route withdrawal initiated
+2026-07-12T09:05:21.114Z Dist-6300-01 hpe-routing: Event|6103|LOG_INFO|MEMBER|1|BGP route withdrawal completed
+2026-07-12T09:10:02.118Z Access-6100-04 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5
+2026-07-12T09:10:04.002Z Access-6100-04 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5
+2026-07-12T09:10:06.015Z Access-6100-04 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:EE on port 1/1/5
+2026-07-12T09:10:08.101Z Access-6100-04 hpe-security: Event|7105|LOG_WARN|MEMBER|1|Port 1/1/5 temporarily blocked due to authentication failures
+2026-07-12T09:15:11.117Z Core-8325-01 hpe-ptm: Event|7101|LOG_CRITICAL|CHASSIS|1|Power supply PSU-2 failure detected
+2026-07-12T09:15:15.221Z Core-8325-01 hpe-thermal: Event|7202|LOG_WARN|CHASSIS|1|Fan tray 1 speed out of normal range
+2026-07-12T09:15:21.332Z Core-8325-01 hpe-thermal: Event|7204|LOG_WARN|CHASSIS|1|Internal temperature exceeded warning threshold
+2026-07-12T09:15:25.550Z Core-8325-01 hpe-system: Event|7301|LOG_WARN|CHASSIS|1|System entered thermal protection mode
+2026-07-12T09:18:10.115Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.25
+2026-07-12T09:18:12.331Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.25
+2026-07-12T09:18:14.881Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.25
+2026-07-12T09:18:16.110Z Core-8325-01 hpe-security: Event|9005|LOG_CRITICAL|SYSTEM|1|SSH source 203.0.113.25 blocked after maximum failed attempts
+2026-07-12T09:22:00.117Z Dist-6300-01 hpe-cardd: Event|1110|LOG_INFO|MEMBER|1|Transceiver inserted on port 1/1/24
+2026-07-12T09:22:00.121Z Dist-6300-01 portd: Event|2601|LOG_INFO|MEMBER|1|Link up on interface 1/1/24
+2026-07-12T09:22:00.124Z Dist-6300-01 ops-init: Event|1204|LOG_INFO|MEMBER|1|Interface 1/1/24 operational status changed to UP
+2026-07-12T09:22:00.127Z Dist-6300-01 hpe-routing: Event|5224|LOG_INFO|MEMBER|1|OSPFv2: Interface 1/1/24 state changed from Down to PtP
+2026-07-12T09:22:02.005Z Dist-6300-01 hpe-routing: Event|5222|LOG_INFO|MEMBER|1|OSPFv2: Neighbor 10.254.1.2 state changed from Down to Full
+2026-07-12T09:22:03.771Z Dist-6300-01 hpe-routing: Event|6104|LOG_INFO|MEMBER|1|BGP peer 10.10.10.1 session established
+2026-07-12T09:22:06.001Z Dist-6300-01 hpe-routing: Event|6105|LOG_INFO|MEMBER|1|BGP routes successfully relearned
+2026-07-12T09:25:15.220Z Core-8325-01 ntpd: Event|1001|LOG_INFO|SYSTEM|1|NTP synchronized with time source 192.168.1.1
+2026-07-12T09:25:18.991Z Core-8325-01 hpe-config: Event|8101|LOG_INFO|SYSTEM|1|Configuration saved by user admin
+
+============================================================
+=== test_general.log ===
+============================================================
+
+May 25 10:00:01 Core-8325-01 ntpd[210]: [daemon.notice] Synchronized to NTP server 10.0.0.1
+May 25 10:01:05 Dist-6300-01 hpe-cardd[401]: [hw.warn] Transceiver on port 1/1/24 removed or signal lost
+May 25 10:01:06 Dist-6300-01 hpe-port-mgr[564]: [port.info] Link down on interface 1/1/24
+May 25 10:01:07 Dist-6300-01 ops-init[320]: [port.info] Interface 1/1/24 operational status changed to DOWN
+May 25 10:01:09 Dist-6300-01 hpe-routing[645]: [ospf.warn] OSPF neighbor 10.1.1.2 changed state from FULL to DOWN
+May 25 10:02:10 Core-8325-01 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.10 (attempt 1)
+May 25 10:02:15 Core-8325-01 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.10 (attempt 2)
+May 25 10:02:20 Core-8325-01 hpe-security[710]: [security.warn] SSH login failed from IP 203.0.113.10 (attempt 3)
+May 25 10:02:25 Core-8325-01 hpe-security[710]: [security.crit] SSH login failed from IP 203.0.113.10: Maximum attempts exceeded, source blocked
+May 25 10:03:00 Access-6100-02 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client AA:BB:CC:DD:EE:01 on port 1/1/10
+May 25 10:03:04 Access-6100-02 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client AA:BB:CC:DD:EE:01 on port 1/1/10
+May 25 10:03:08 Access-6100-02 hpe-port-mgr[564]: [port.warn] Port 1/1/10 blocked due to authentication failures
+May 25 10:04:15 Core-8325-01 hpe-ptm[505]: [hw.crit] Power supply PSU-2 failure detected
+May 25 10:04:20 Core-8325-01 hpe-ptm[505]: [hw.warn] Fan tray 1 speed out of normal range
+May 25 10:04:30 Core-8325-01 hpe-ptm[505]: [hw.warn] Internal temperature exceeded warning threshold
+May 25 10:04:40 Core-8325-01 hpe-ptm[505]: [hw.crit] System entered thermal protection mode
+May 25 10:05:00 Dist-6300-01 hpe-cardd[401]: [hw.notice] Transceiver inserted in port 1/1/24
+May 25 10:05:03 Dist-6300-01 hpe-port-mgr[564]: [port.info] Link up on interface 1/1/24
+May 25 10:05:06 Dist-6300-01 hpe-routing[645]: [ospf.info] OSPF neighbor 10.1.1.2 changed state from DOWN to FULL
+May 25 10:06:00 Core-8325-01 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed
+============================================================
+=== test_logs.txt ===
+============================================================
+
+May 14 14:00:49 router-1 110.0.0.2 21001: %SYS-5-CONFIG_I: Configured from console by admin on vty0
+May 14 14:10:15 router-1 110.0.0.2 21002: %LLDP-5-NEIGHBOR: LLDP neighbor up: switch-1 (192.168.1.10) on GigabitEthernet0/1
+May 14 14:45:00 router-1 110.0.0.2 21003: %BGP-5-ADJCHANGE: neighbor 192.168.1.10 Up
+May 14 14:52:04 router-1 110.0.0.2 21004: %LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down
+May 14 14:52:06 router-1 110.0.0.2 21005: %LINEPROTO-5-UPDOWN: Line protocol on Interface GigabitEthernet0/1, changed state to down
+May 14 14:52:09 router-1 110.0.0.2 21006: %BGP-5-ADJCHANGE: neighbor 192.168.1.10 Down BGP Notification sent
+May 14 14:53:51 router-1 110.0.0.2 21007: %OSPF-5-ADJCHG: Process 1, Nbr 192.168.2.1 on Vlan20 from FULL to DOWN, Neighbor Down: Interface down or detached
+May 14 14:54:30 router-1 110.0.0.2 21008: %OSPF-5-ADJCHG: Process 1, Nbr 192.168.2.5 on Vlan20 from FULL to DOWN, Neighbor Down: Interface down or detached
+May 14 15:04:12 router-1 110.0.0.2 21009: %LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to up
+May 14 15:04:14 router-1 110.0.0.2 21010: %LINEPROTO-5-UPDOWN: Line protocol on Interface GigabitEthernet0/1, changed state to up
+May 14 15:04:22 router-1 110.0.0.2 21011: %BGP-5-ADJCHANGE: neighbor 192.168.1.10 Up
+
+============================================================
+=== test_messy.log ===
+============================================================
+
+2026-08-15T10:00:01.100Z Core-8325-01 ntpd: Event|1001|LOG_INFO|SYSTEM|1|NTP synchronized with server 192.168.10.1
+2026-08-15T10:00:03.221Z Core-8325-01 hpe-config: Event|8101|LOG_INFO|SYSTEM|1|Configuration saved by user admin
+2026-08-15T10:01:10.112Z Dist-6300-01 hpe-cardd: Event|1105|LOG_INFO|MEMBER|1|Transceiver on port 1/1/24 removed or signal lost
+2026-08-15T10:01:10.114Z Dist-6300-01 portd: Event|2602|LOG_INFO|MEMBER|1|Link down on interface 1/1/24
+2026-08-15T10:01:10.117Z Dist-6300-01 ops-init: Event|1203|LOG_INFO|MEMBER|1|Interface 1/1/24 operational status changed to DOWN
+2026-08-15T10:01:10.121Z Dist-6300-01 hpe-routing: Event|5221|LOG_WARN|MEMBER|1|OSPFv2 Neighbor 10.254.1.2 changed from Full to Down
+2026-08-15T10:01:10.126Z Dist-6300-01 hpe-routing: Event|6101|LOG_WARN|MEMBER|1|BGP peer 10.10.10.1 session lost
+2026-08-15T10:01:10.131Z Dist-6300-01 hpe-routing: Event|5204|LOG_INFO|MEMBER|1|OSPF route calculation started
+2026-08-15T10:01:10.135Z Dist-6300-01 hpe-routing: Event|5205|LOG_INFO|MEMBER|1|OSPF route calculation completed
+2026-08-15T10:01:12.551Z Access-6100-03 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:01 on port 1/1/5
+2026-08-15T10:01:14.008Z Access-6100-03 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:01 on port 1/1/5
+2026-08-15T10:01:16.451Z Access-6100-03 hpe-authd: Event|4201|LOG_ERR|MEMBER|1|802.1X authentication failed for client 00:AA:BB:CC:DD:01 on port 1/1/5
+2026-08-15T10:01:18.110Z Access-6100-03 hpe-security: Event|7105|LOG_WARN|MEMBER|1|Port 1/1/5 blocked due to repeated authentication failures
+2026-08-15T10:01:20.411Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.50
+2026-08-15T10:01:21.882Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.50
+2026-08-15T10:01:23.115Z Core-8325-01 hpe-security: Event|9001|LOG_WARN|SYSTEM|1|SSH login failed from 203.0.113.50
+2026-08-15T10:01:25.551Z Core-8325-01 hpe-security: Event|9005|LOG_CRITICAL|SYSTEM|1|SSH source 203.0.113.50 blocked after maximum failed attempts
+2026-08-15T10:02:10.117Z Core-8325-01 hpe-ptm: Event|7101|LOG_CRITICAL|CHASSIS|1|Power supply PSU-2 failure detected
+2026-08-15T10:02:12.221Z Core-8325-01 hpe-thermal: Event|7202|LOG_WARN|CHASSIS|1|Fan tray 1 speed out of normal range
+2026-08-15T10:02:15.771Z Core-8325-01 hpe-thermal: Event|7204|LOG_WARN|CHASSIS|1|Internal temperature exceeded warning threshold
+2026-08-15T10:02:19.441Z Core-8325-01 hpe-system: Event|7301|LOG_WARN|CHASSIS|1|System entered thermal protection mode
+2026-08-15T10:02:22.331Z Core-8325-01 hpe-system: Event|7302|LOG_CRITICAL|CHASSIS|1|Linecard slot 2 disabled due to thermal condition
+2026-08-15T10:02:24.118Z Core-8325-01 hpe-routing: Event|6101|LOG_WARN|SYSTEM|1|BGP peer 172.16.1.1 session lost
+2026-08-15T10:02:26.224Z Core-8325-01 hpe-routing: Event|5204|LOG_INFO|SYSTEM|1|Routing table recalculation started
+2026-08-15T10:02:29.991Z Core-8325-01 hpe-routing: Event|5205|LOG_INFO|SYSTEM|1|Routing table recalculation completed
+2026-08-15T10:03:05.771Z Access-6100-05 hpe-portd: Event|2603|LOG_WARN|MEMBER|1|Excessive CRC errors detected on interface 1/1/48
+2026-08-15T10:03:08.115Z Access-6100-05 hpe-portd: Event|2603|LOG_WARN|MEMBER|1|Excessive CRC errors detected on interface 1/1/48
+2026-08-15T10:03:11.554Z Access-6100-05 hpe-portd: Event|2602|LOG_INFO|MEMBER|1|Link down on interface 1/1/48
+2026-08-15T10:03:14.115Z Access-6100-05 ops-init: Event|1203|LOG_INFO|MEMBER|1|Interface 1/1/48 operational status changed to DOWN
+2026-08-15T10:03:20.771Z Access-6100-05 lldpd: Event|3102|LOG_INFO|MEMBER|1|LLDP neighbor removed from interface 1/1/48
+2026-08-15T10:04:05.441Z Dist-6300-01 hpe-cardd: Event|1110|LOG_INFO|MEMBER|1|Transceiver inserted on port 1/1/24
+2026-08-15T10:04:05.445Z Dist-6300-01 portd: Event|2601|LOG_INFO|MEMBER|1|Link up on interface 1/1/24
+2026-08-15T10:04:05.449Z Dist-6300-01 ops-init: Event|1204|LOG_INFO|MEMBER|1|Interface 1/1/24 operational status changed to UP
+2026-08-15T10:04:05.452Z Dist-6300-01 hpe-routing: Event|5222|LOG_INFO|MEMBER|1|OSPFv2 Neighbor 10.254.1.2 changed from Down to Full
+2026-08-15T10:04:07.221Z Dist-6300-01 hpe-routing: Event|6104|LOG_INFO|MEMBER|1|BGP peer 10.10.10.1 session established
+2026-08-15T10:04:10.004Z Dist-6300-01 hpe-routing: Event|6105|LOG_INFO|MEMBER|1|BGP routes successfully relearned
+2026-08-15T10:05:01.441Z Core-8325-01 hpe-security: Event|9010|LOG_INFO|SYSTEM|1|SSH access granted for user admin from 192.168.1.50
+2026-08-15T10:05:04.881Z Core-8325-01 hpe-config: Event|8102|LOG_INFO|SYSTEM|1|Running configuration modified by user admin
+2026-08-15T10:05:10.224Z Core-8325-01 hpe-config: Event|8103|LOG_INFO|SYSTEM|1|Startup configuration updated
+2026-08-15T10:05:20.661Z Core-8325-01 ntpd: Event|1001|LOG_INFO|SYSTEM|1|NTP synchronized with server 192.168.10.1
+
+============================================================
+=== test_prompt.log ===
+============================================================
+
+May 14 14:02:11 192.168.1.104 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed
+May 14 14:05:01 192.168.1.104 hpe-port-mgr[564]: [port.info] Port 1/1/1 is now on-line
+May 14 14:10:02 192.168.1.104 hpe-vlan-mgr[568]: [vlan.info] Vlan 10 is created
+May 14 14:15:01 192.168.1.104 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client 00:11:22:33:44:55 on port 1/1/5
+May 14 14:20:15 192.168.1.104 hpe-port-mgr[564]: [port.info] Port 1/1/2 is now off-line
+May 14 14:21:02 192.168.1.104 hpe-port-mgr[564]: [port.warn] Port 1/1/12: Excessive CRC errors detected
+May 14 14:22:40 192.168.1.104 hpe-port-mgr[564]: [port.notice] Transceiver inserted in port 1/1/48
+May 14 14:25:11 192.168.1.104 hpe-lldpd[612]: [lldp.info] LLDP neighbor 00:25:B3:11:22:33 discovered on port 1/1/10
+May 14 14:30:45 192.168.1.104 hpe-authd[589]: [auth.info] MAC-Auth: Client 00:AA:BB:CC:DD:EE successfully authenticated on port 1/1/4
+May 14 14:31:12 192.168.1.104 hpe-authd[589]: [auth.notice] 802.1x: Client 00:11:22:33:44:55 logged out from port 1/1/5
+May 14 14:32:01 192.168.1.104 vsftpd[702]: [daemon.warn] Authentication failure for user admin from 192.168.1.99
+May 14 14:35:19 192.168.1.104 hpe-security[710]: [security.crit] SSH login failed from IP 203.0.113.5: Maximum attempts exceeded
+May 14 14:40:02 192.168.1.104 hpe-mstpd[630]: [mstp.notice] Instance 0: Port 1/1/1 changed state from LEARNING to FORWARDING
+May 14 14:40:05 192.168.1.104 hpe-mstpd[630]: [mstp.warn] Instance 0: Topology change detected on port 1/1/1
+May 14 14:42:33 192.168.1.104 hpe-routing[645]: [bgp.info] BGP peer 10.10.10.2 session established
+May 14 14:43:10 192.168.1.104 hpe-routing[645]: [ospf.warn] OSPF neighbor 192.168.2.1 on VLAN 20 changed state from FULL to DOWN
+May 14 14:50:00 192.168.1.104 hpe-config[512]: [config.info] Configuration changed by user 'admin' via ssh from 192.168.1.50
+May 14 14:51:15 192.168.1.104 hpe-ptm[505]: [hw.crit] Power supply PSU-2 failure detected
+May 14 14:52:44 192.168.1.104 hpe-ptm[505]: [hw.warn] Fan tray 1 speed out of normal range (High)
+May 14 14:55:01 192.168.1.104 ntp[801]: [daemon.info] NTP synchronized to time server 132.163.97.5
+
+============================================================
+=== test_router1.log ===
+============================================================
+
+Jun 02 08:01:24 router-1 110.0.0.2 30001: %LLDP-5-NEIGHBOR: LLDP neighbor up: core-switch (192.168.1.10) on GigabitEthernet0/1
+Jun 02 08:10:00 router-1 110.0.0.2 30002: %SYS-5-CONFIG_I: Configured from console by admin on vty0
+Jun 02 08:15:30 router-1 110.0.0.2 30003: %BGP-5-ADJCHANGE: neighbor 192.168.1.10 Up
+Jun 02 08:26:22 router-1 110.0.0.2 30004: %LINK-3-UPDOWN: Interface GigabitEthernet0/2, changed state to down
+Jun 02 08:26:24 router-1 110.0.0.2 30005: %LINEPROTO-5-UPDOWN: Line protocol on Interface GigabitEthernet0/2, changed state to down
+Jun 02 08:27:01 router-1 110.0.0.2 30006: %OSPF-5-ADJCHG: Process 1, Nbr 192.168.4.2 on Vlan30 from FULL to DOWN, Neighbor Down: Interface down or detached
+Jun 02 08:30:05 router-1 110.0.0.2 30007: %SEC-6-IPACCESSLOGP: list 110 denied tcp 198.51.100.20(443) -> 10.0.0.2(22), 5 packets
+Jun 02 08:45:00 router-1 110.0.0.2 30008: %SNMP-3-AUTHFAIL: Authentication failure for SNMP req from host 10.0.0.250
+Jun 02 08:50:12 router-1 110.0.0.2 30009: %LINK-3-UPDOWN: Interface GigabitEthernet0/2, changed state to up
+Jun 02 08:50:14 router-1 110.0.0.2 30010: %LINEPROTO-5-UPDOWN: Line protocol on Interface GigabitEthernet0/2, changed state to up
+Jun 02 08:51:40 router-1 110.0.0.2 30011: %OSPF-5-ADJCHG: Process 1, Nbr 192.168.4.2 on Vlan30 from DOWN to FULL, Neighbor Up
+Jun 02 09:00:00 router-1 110.0.0.2 30012: %SYS-5-CONFIG_I: Configured from console by admin on vty1
+Jun 02 09:15:00 router-1 110.0.0.2 30013: %ENVIRONMENT-1-ALERT: Temp: Inlet 1 Temperature reading 41C, threshold 65C - normal
+
+============================================================
+=== test_tunnel.log ===
+============================================================
+
+2026-04-07T08:20:39.968046+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 9.9.9.9 state is operational
+2026-04-07T08:20:39.967967+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 6.6.6.6 state is operational
+2026-04-07T08:20:39.967882+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 4.4.4.4 state is operational
+2026-04-07T08:20:39.967803+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 5.5.5.5 state is operational
+2026-04-07T08:20:39.967724+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 8.8.8.8 state is operational
+2026-04-07T08:20:39.967644+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 2.2.2.2 state is operational
+2026-04-07T08:20:39.967562+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 3.3.3.3 state is operational
+2026-04-07T08:20:39.967448+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 7.7.7.7 state is operational
+2026-04-07T08:20:39.897872+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 9.9.9.9 forwarding_state is operational
+2026-04-07T08:20:39.896928+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 9.9.9.9
+2026-04-07T08:20:39.892600+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 6.6.6.6 forwarding_state is operational
+2026-04-07T08:20:39.891651+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 6.6.6.6
+2026-04-07T08:20:39.887328+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 4.4.4.4 forwarding_state is operational
+2026-04-07T08:20:39.886351+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 4.4.4.4
+2026-04-07T08:20:39.881816+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 5.5.5.5 forwarding_state is operational
+2026-04-07T08:20:39.880805+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 5.5.5.5
+2026-04-07T08:20:39.876454+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 8.8.8.8 forwarding_state is operational
+2026-04-07T08:20:39.875471+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 8.8.8.8
+2026-04-07T08:20:39.871060+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 2.2.2.2 forwarding_state is operational
+2026-04-07T08:20:39.869972+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 2.2.2.2
+2026-04-07T08:20:39.865818+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 3.3.3.3 forwarding_state is operational
+2026-04-07T08:20:39.864820+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 3.3.3.3
+2026-04-07T08:20:39.861162+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 7.7.7.7 forwarding_state is operational
+2026-04-07T08:20:39.861076+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 7.7.7.7
+2026-04-07T08:20:39.860973+00:00 9300 ops-switchd[1489]: Event|8102|LOG_INFO|AMM|1/1|VNI id 9001 created
+2026-04-07T08:20:39.806661+00:00 9300 tunneld[1130]: Event|8118|LOG_INFO|AMM|1/1|Interface vxlan 1, configured administratively up
+2026-04-07T08:20:39.780976+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 9.9.9.9 forwarding_state is activating
+2026-04-07T08:20:39.775960+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 9.9.9.9
+2026-04-07T08:20:39.775869+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 6.6.6.6 forwarding_state is activating
+2026-04-07T08:20:39.771854+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 6.6.6.6
+2026-04-07T08:20:39.771770+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 4.4.4.4 forwarding_state is activating
+2026-04-07T08:20:39.767683+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 4.4.4.4
+2026-04-07T08:20:39.767598+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 5.5.5.5 forwarding_state is activating
+2026-04-07T08:20:39.763512+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 5.5.5.5
+2026-04-07T08:20:39.763416+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 8.8.8.8 forwarding_state is activating
+2026-04-07T08:20:39.759318+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 8.8.8.8
+2026-04-07T08:20:39.759230+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 2.2.2.2 forwarding_state is activating
+2026-04-07T08:20:39.755156+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 2.2.2.2
+2026-04-07T08:20:39.755069+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 3.3.3.3 forwarding_state is activating
+2026-04-07T08:20:39.751148+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 3.3.3.3
+2026-04-07T08:20:39.751052+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 7.7.7.7 forwarding_state is activating

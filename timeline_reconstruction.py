@@ -111,13 +111,24 @@ COOCCURRING_SUBTYPES = {
     frozenset({"stp_topology_change", "ospf_neighbor_down"}),
     frozenset({"power", "fan"}),
     frozenset({"power", "interface_down"}),
+    frozenset({"fan", "thermal"}),
+    frozenset({"thermal", "linecard_disabled"}),
+    frozenset({"linecard_disabled", "bgp"}),
+    frozenset({"linecard_disabled", "bgp_session_lost"}),
+    frozenset({"linecard_disabled", "ospf"}),
     frozenset({"crc_errors", "interface_down"}),
-    frozenset({"config_change", "bgp"}),
-    frozenset({"config_change", "ospf"}),
-    frozenset({"config_change", "interface_down"}),
     frozenset({"dot1x_failure", "interface_down"}),
     frozenset({"radius_failure", "dot1x_failure"}),
     frozenset({"bgp", "ospf"}),
+    frozenset({"bgp", "ospf_recalculation"}),
+    frozenset({"bgp_session_lost", "ospf_recalculation"}),
+    frozenset({"route_withdrawal", "bgp_session_lost"}),
+    frozenset({"route_withdrawal", "bgp"}),
+    frozenset({"routes_relearned", "bgp"}),
+    frozenset({"route_recalculation_completed", "bgp"}),
+    frozenset({"transceiver", "interface_down"}),
+    frozenset({"transceiver", "ospf_recalculation"}),
+    frozenset({"transceiver", "bgp"}),
     # VXLAN co-occurrences
     frozenset({"tunnel_nexthop_delete", "tunnel_activating"}),
     frozenset({"tunnel_nexthop_delete", "vtep_down"}),
@@ -345,6 +356,19 @@ def compatibility_score(
         if not (shares_explicit_reference(a, b) or shares_interface_reference(a, b)):
             score -= 0.50  # Sever the connection unless explicitly linked
 
+    # Penalize cross-device links that lack any topological evidence
+    if dev_a != dev_b and not (shares_stp or shares_explicit_reference(a, b) or shares_interface_reference(a, b) or shares_vlan_or_subnet(a, b) or same_client_mac(a, b)):
+        score -= 0.50
+
+    # Strictly penalize cross-protocol or cross-subdomain merges that don't match by IP or interface.
+    # E.g., don't merge FTP auth failure with SSH bruteforce just because they are both 'security'.
+    if da == db and da in {"security", "access_control"} and dev_a == dev_b and not (shares_stp or shares_explicit_reference(a, b) or shares_interface_reference(a, b) or shares_vlan_or_subnet(a, b) or same_client_mac(a, b)):
+        sa = _normalize_subtype(a)
+        sb = _normalize_subtype(b)
+        if sa != sb and frozenset({sa, sb}) not in COOCCURRING_SUBTYPES:
+            # Different subtypes within the same domain (e.g. admin_auth vs ssh_bruteforce)
+            score -= 0.40
+
     # --------------------------------------------------
     # 4. Temporal compatibility
     # NOT proximity — "could a real propagation delay explain this gap?"
@@ -362,7 +386,7 @@ def compatibility_score(
     # 5. Historical subtype co-occurrence
     # --------------------------------------------------
     if subtypes_cooccur(a, b):
-        score += 0.15
+        score += 0.30
 
     return min(score, 1.0)
 

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Incident Visualization</title>
+  <style>
+    :root {
+      --bg: #f4f2ea;
+      --paper: #fffdf7;
+      --ink: #1f1a14;
+      --accent: #b84c2a;
+      --line: #d6cab5;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, #f6e3d6 0%, transparent 38%),
+        radial-gradient(circle at bottom left, #e9f0d8 0%, transparent 42%),
+        var(--bg);
+    }
+    .wrap { max-width: 1100px; margin: 30px auto; padding: 0 16px; }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
+      padding: 18px;
+    }
+    h1 { margin: 0 0 8px 0; color: var(--accent); }
+    p { margin: 0 0 14px 0; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid var(--line); text-align: left; padding: 10px; font-size: 14px; }
+    th { background: #f7efe2; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Network Incident Timeline Overview</h1>
+      <p>Generated at 2026-06-25T18:21:49Z</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Incident</th><th>Start</th><th>End</th><th>Duration(s)</th>
+            <th>Events</th><th>Devices</th><th>Primary Issue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>WORKFLOW-0001</td><td>2026-09-01T10:00:01+00:00</td><td>2026-09-01T10:04:55+00:00</td><td>294.0</td><td>4</td><td>Core-8325-01</td><td>unknown</td></tr><tr><td>WORKFLOW-0002</td><td>2026-09-01T10:00:05+00:00</td><td>2026-09-01T10:04:30+00:00</td><td>265.0</td><td>3</td><td>Core-8325-01</td><td>unknown</td></tr><tr><td>WORKFLOW-0003</td><td>2026-09-01T10:00:08+00:00</td><td>2026-09-01T10:04:40+00:00</td><td>272.0</td><td>2</td><td>Access-6100-01</td><td>unknown</td></tr><tr><td>INC-0004</td><td>2026-09-01T10:01:00+00:00</td><td>2026-09-01T10:04:10+00:00</td><td>190.0</td><td>16</td><td>Dist-6300-01</td><td>unknown</td></tr><tr><td>INC-0005</td><td>2026-09-01T10:01:22+00:00</td><td>2026-09-01T10:01:26+00:00</td><td>4.0</td><td>2</td><td>Core-8325-01</td><td>unknown</td></tr><tr><td>INC-0006</td><td>2026-09-01T10:02:00+00:00</td><td>2026-09-01T10:02:06+00:00</td><td>6.0</td><td>2</td><td>Access-6100-02</td><td>unknown</td></tr><tr><td>INC-0007</td><td>2026-09-01T10:02:15+00:00</td><td>2026-09-01T10:03:20+00:00</td><td>65.0</td><td>7</td><td>Core-8325-01</td><td>unknown</td></tr><tr><td>INC-0008</td><td>2026-09-01T10:03:00+00:00</td><td>2026-09-01T10:03:10+00:00</td><td>10.0</td><td>4</td><td>Access-6100-03</td><td>unknown</td></tr><tr><td>WORKFLOW-0009</td><td>2026-09-01T10:03:15+00:00</td><td>2026-09-01T10:03:15+00:00</td><td>0.0</td><td>1</td><td>Core-8325-01</td><td>unknown</td></tr><tr><td>WORKFLOW-0010</td><td>2026-09-01T10:04:20+00:00</td><td>2026-09-01T10:04:20+00:00</td><td>0.0</td><td>1</td><td>Core-8325-01</td><td>unknown</td></tr><tr><td>WORKFLOW-0011</td><td>2026-09-01T10:04:45+00:00</td><td>2026-09-01T10:04:45+00:00</td><td>0.0</td><td>1</td><td>Access-6100-01</td><td>unknown</td></tr><tr><td>WORKFLOW-0012</td><td>2026-09-01T10:05:00+00:00</td><td>2026-09-01T10:05:00+00:00</td><td>0.0</td><td>1</td><td>Access-6100-04</td><td>unknown</td></tr><tr><td>WORKFLOW-0013</td><td>2026-09-01T10:05:05+00:00</td><td>2026-09-01T10:05:05+00:00</td><td>0.0</td><td>1</td><td>Access-6100-04</td><td>unknown</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

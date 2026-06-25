@@ -122,7 +122,7 @@ def normalize_timestamps(
             # Parse event_time (required)
             e["event_time"] = datetime.fromisoformat(
                 e.get("event_time", "").replace("Z", "+00:00")
-            ).replace(microsecond=0)
+            )
 
             # ingestion_time is optional; fall back to event_time when absent
             ing = e.get("ingestion_time")
@@ -130,7 +130,7 @@ def normalize_timestamps(
                 try:
                     e["ingestion_time"] = datetime.fromisoformat(
                         ing.replace("Z", "+00:00")
-                    ).replace(microsecond=0)
+                    )
                 except Exception:
                     # If parsing fails, set ingestion_time == event_time
                     e["ingestion_time"] = e["event_time"]

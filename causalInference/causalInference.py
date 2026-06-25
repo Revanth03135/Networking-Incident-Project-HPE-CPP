@@ -108,7 +108,8 @@ DOMAIN_TIER = {
 }
 
 RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan_failure", "power_failure", "ntp", "transceiver",
-                   "tunnel_operational", "vtep_operational", "tunnel_nexthop_add"}
+                   "tunnel_operational", "vtep_operational", "tunnel_nexthop_add", "bgp_session_established",
+                   "ospf_neighbor_up", "routes_relearned", "ospf_interface_up", "radius_recovered", "fan_nominal"}
 RECOVERY_KEYWORDS = {"established", "up", "on-line", "online", "restored", "synchronized",
                      "forwarding", "operational", "activating", "inserted", "full", "ptp", "relearned"}
 
@@ -321,9 +322,10 @@ def relation(a, b) -> Tuple[float, Optional[str]]:
 
     pairs = {
         # Standard syslog causal chains
-        "power_failure": {"fan_failure", "interface_down", "crc_errors", "thermal", "bgp", "ospf"},
-        "fan_failure": {"thermal", "interface_down"},
-        "thermal": {"interface_down", "bgp", "ospf"},
+        "power_failure": {"fan_failure", "interface_down", "crc_errors", "thermal", "bgp", "ospf", "linecard_disabled"},
+        "fan_failure": {"thermal", "interface_down", "linecard_disabled"},
+        "thermal": {"interface_down", "bgp", "ospf", "linecard_disabled"},
+        "linecard_disabled": {"interface_down", "bgp", "ospf", "ospf_neighbor_down", "bgp_session_lost", "crc_errors"},
         "crc_errors": {"interface_down", "stp_topology_change", "ospf", "bgp"},
         "transceiver": {"interface_down", "crc_errors"},
         "interface_down": {"stp_topology_change", "ospf", "ospf_neighbor_down", "bgp", "dot1x_failure",
@@ -498,15 +500,26 @@ def analyze_incident(inc: Dict) -> Dict:
         x["is_recovery"] = is_recovery(x)
         normalized.append(x)
 
+    G = build_causal_graph(normalized)
+    
     actionable_events = [e for e in normalized if e["actionable"]]
-    if actionable_events:
+    roots_in_g = [n for n in G.nodes() if G.in_degree(n) == 0 and G.out_degree(n) > 0]
+    
+    if roots_in_g:
+        # True DAG root exists; tie-break with heuristic score if multiple
+        root_uid = max(roots_in_g, key=lambda uid: next((e["root_score"] for e in normalized if e["event_uid"] == uid), 0))
+        root = next(e for e in normalized if e["event_uid"] == root_uid)
+        classification = "actionable"
+    elif actionable_events:
+        # Fallback to heuristic score for actionable events
         root = max(actionable_events, key=lambda e: e["root_score"])
         classification = "actionable"
     else:
+        # Purely informational workflow
         root = max(normalized, key=lambda e: e["root_score"], default=None)
         classification = "informational"
 
-    G = build_causal_graph(normalized)
+    # Graph is already built above
     sequences = extract_causal_sequences(G)
     
     links = []
@@ -539,7 +552,7 @@ def analyze_incident(inc: Dict) -> Dict:
         elif max_sev >= 2:
             classification = "standalone_alert"
         else:
-            classification = "informational"
+            classification = "operational_workflow"
 
     start_time = None
     end_time = None
@@ -563,20 +576,28 @@ def analyze_incident(inc: Dict) -> Dict:
         sev_ranks = {"info": 1, "warning": 2, "error": 3, "critical": 4}
         max_sev = max((sev_ranks.get(str(e.get("severity", "info")).lower(), 1) for e in normalized), default=1)
         
-        ends_with_recovery = any(e.get("is_recovery") for e in normalized[-3:])
+        ends_with_recovery = any(is_recovery(e) for e in normalized[-3:])
         unrecovered = 0
         for e in normalized:
             sev = sev_ranks.get(str(e.get("severity", "info")).lower(), 1)
-            if sev > 1 and not e.get("is_recovery"):
+            if sev > 1 and not is_recovery(e):
                 unrecovered += 1
-            elif e.get("is_recovery"):
+            elif is_recovery(e):
                 unrecovered = max(0, unrecovered - 1)
                 
+        total_failures = sum(1 for e in normalized if not is_recovery(e))
+        total_recoveries = sum(1 for e in normalized if is_recovery(e))
+        
         if max_sev <= 1:
             classification = "operational_workflow"
-        elif unrecovered == 0 and ends_with_recovery:
-            classification = "actionable"
-            status = "Resolved"
+            status = "Successful"
+        else:
+            if total_failures > 0 and total_recoveries == 0:
+                status = "Active"
+            elif unrecovered == 0 and total_recoveries > 0:
+                status = "Resolved"
+            elif unrecovered > 0 and total_recoveries > 0:
+                status = "Recovering"
 
     return {
         "incident_id": inc.get("incident_id"),
@@ -599,76 +620,8 @@ def analyze_incident(inc: Dict) -> Dict:
 
 
 def validate_and_split(inc_result: Dict, original_inc: Dict) -> List[Dict]:
-    # Rebuild the causal DAG from links
-    G = nx.DiGraph()
-    events_by_uid = {}
-    recovery_events = []
-    
-    for e in inc_result.get("events", []):
-        uid = e.get("event_uid")
-        if uid:
-            events_by_uid[uid] = e
-            if is_recovery(e):
-                recovery_events.append(e)
-            else:
-                G.add_node(uid)
-
-    for link in inc_result.get("causal_links", []):
-        src = link.get("source_event_uid")
-        tgt = link.get("target_event_uid")
-        if src and tgt and src in G.nodes() and tgt in G.nodes():
-            G.add_edge(src, tgt, **link)
-
-    # Check for disconnected components among failure events
-    weak_components = list(nx.weakly_connected_components(G))
-
-    if len(weak_components) <= 1:
-        # Single coherent incident — no split needed
-        return [inc_result]
-
-    # Multiple components: split into separate incidents
-    print(f"[VALIDATE]   ⚠ {inc_result.get('incident_id')} has "
-          f"{len(weak_components)} disconnected causal components — splitting")
-
-    split_results = []
-    base_id = inc_result.get("incident_id", "INC-0000")
-
-    for comp_idx, component in enumerate(weak_components, start=1):
-        # Build a sub-incident from this component's events
-        comp_events = [events_by_uid[uid] for uid in component if uid in events_by_uid]
-        if not comp_events:
-            continue
-
-        # Re-attach recovery events to the component that shares their device and port
-        for rec_e in recovery_events:
-            rec_dev = rec_e.get("device")
-            rec_port = port(rec_e)
-            rec_time = parse_dt(get_time(rec_e))
-            
-            # Find the best component for this recovery event
-            for fail_e in comp_events:
-                if fail_e.get("device") == rec_dev and port(fail_e) == rec_port:
-                    fail_time = parse_dt(get_time(fail_e))
-                    if rec_time >= fail_time:
-                        if rec_e not in comp_events:
-                            comp_events.append(rec_e)
-                        break
-
-        comp_events.sort(key=lambda e: parse_dt(get_time(e)))
-
-        sub_incident = dict(original_inc)
-        sub_incident["incident_id"] = f"{base_id}-{comp_idx}"
-        sub_incident["events"] = comp_events
-        sub_incident["event_count"] = len(comp_events)
-
-        # Re-run causal analysis on just this component
-        sub_result = analyze_incident(sub_incident)
-        # Force keep original events so resolution events aren't dropped by analyze_incident
-        sub_result["events"] = comp_events
-        sub_result["split_from"] = base_id
-        split_results.append(sub_result)
-
-    return split_results if split_results else [inc_result]
+    # We no longer split incidents. Timeline clustering is trusted as the source of truth.
+    return [inc_result]
 
 
 def analyze_and_validate(inc: Dict) -> List[Dict]:
