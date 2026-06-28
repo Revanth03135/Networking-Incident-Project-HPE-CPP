@@ -812,10 +812,10 @@ class LogProcessor:
             # --- Detect subtype and type from message content ---
             _SUBTYPE_RULES = [
                 ("power_failure",          ["power supply", "psu failure", "psu failed", "power failure"]),
-                ("fan_failure",            ["fan failure", "fan stopped", "speed out of normal range", "fan tray failed"]),
+                ("fan_failure",            ["fan tray", "fan failure", "fan stopped", "speed out of normal range", "fan tray failed", "speed below threshold"]),
                 ("fan_nominal",            ["speed nominal", "fan nominal"]),
-                ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                 ("linecard_disabled",    ["linecard slot", "disabled due to"]),
+                ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                 ("crc_errors",           ["crc error", "excessive crc"]),
                 ("interface_down",       ["off-line", "offline", "link down", "is down", "state to down", "changed state to down", "operational status changed to down"]),
                 ("interface_up",         ["on-line", "online", "link up", "state to up", "changed state to up", "operational status changed to up"]),
@@ -835,7 +835,7 @@ class LogProcessor:
                 ("ospf",                 ["ospf"]),
                 ("dot1x_logout",         ["logged out", "dot1x_logout"]),
                 ("dot1x_failure",        ["authentication failed"]),
-                ("port_blocked",         ["blocked due to repeated"]),
+                ("port_blocked",         ["blocked due to repeated", "temporarily blocked", "blocked after repeated"]),
                 ("radius_failure",       ["radius server unreachable", "radius unreachable"]),
                 ("radius_recovered",     ["backup radius", "radius restored"]),
                 ("mac_auth_success",     ["authentication succeeded"]),

@@ -1,64 +1,66 @@
 # Network Incident Investigation Report
 
-Generated: 2026-06-25T17:54:27Z
+Generated: 2026-06-28T15:29:16Z
 
 ## Executive Summary
-- Total incidents reconstructed: 0
-- Total events analyzed: 41
-- Total causal links inferred: 0
-- Affected devices: N/A
+- Total incidents reconstructed: 3
+- Total events analyzed: 14
+- Total causal links inferred: 11
+- Affected devices: Access-6100-02, Core-8325-01, Dist-6300-01
 
 ## Probable Initiating Triggers
-- No high-confidence root trigger was detected
+- Incident INC-0001 -> transceiver (device=Dist-6300-01, score=188.6)
+- Incident INC-0003 -> dot1x_failure (device=Access-6100-02, score=54.3)
+- Incident INC-0004 -> power_failure (device=Core-8325-01, score=217.9)
 
 ## Incident Overview
-- No actionable incidents detected.
+- INC-0001: events=4, duration=3.0s, primary_issue=transceiver
+- INC-0003: events=2, duration=6.0s, primary_issue=dot1x_failure
+- INC-0004: events=4, duration=9.0s, primary_issue=power_failure
 
 ## Detailed Incident Chains
+### INC-0001
+**Failure Sequence:**
+- transceiver (info)
+- interface_down (info)
+- ospf_neighbor_down (warning)
+- bgp_session_lost (warning)
+
+*Status: Active*
+*Duration: 3.0s*
+
+### INC-0003
+**Failure Sequence:**
+- dot1x_failure ×2 (error)
+- port_blocked (warning)
+
+*Status: Active*
+*Duration: 6.0s*
+
+### INC-0004
+**Failure Sequence:**
+- power_failure (critical)
+- fan_failure (warning)
+- thermal (warning)
+- linecard_disabled (critical)
+
+*Status: Active*
+*Duration: 9.0s*
+
 ## Operational Workflows Detected
 
-### Workflow: WORKFLOW-0001
+### Workflow: WORKFLOW-0006
 - **Status:** Successful
 - **Incident Detected:** No
 - **Sequence Summary:**
-  - tunnel_activating (info)
-  - tunnel_nexthop_delete (info)
-  - tunnel_activating (info)
-  - tunnel_nexthop_delete (info)
-  - tunnel_activating (info)
-  - tunnel_nexthop_delete (info)
-  - tunnel_activating (info)
-  - tunnel_nexthop_delete (info)
-  - tunnel_activating (info)
-  - tunnel_nexthop_delete (info)
-  - tunnel_activating (info)
-  - tunnel_nexthop_delete (info)
-  - tunnel_activating (info)
-  - tunnel_nexthop_delete (info)
-  - tunnel_activating (info)
-  - tunnel_nexthop_add (info)
-  - tunnel_operational (info)
-  - tunnel_nexthop_add (info)
-  - tunnel_operational (info)
-  - tunnel_nexthop_add (info)
-  - tunnel_operational (info)
-  - tunnel_nexthop_add (info)
-  - tunnel_operational (info)
-  - tunnel_nexthop_add (info)
-  - tunnel_operational (info)
-  - tunnel_nexthop_add (info)
-  - tunnel_operational (info)
-  - tunnel_nexthop_add (info)
-  - tunnel_operational (info)
-  - tunnel_nexthop_add (info)
-  - tunnel_operational (info)
-  - vtep_operational (info) x8
+  - config_change (info)
 
 ## Routine & Unlinked Noise
 The following events were classified as non-actionable noise or routine informational activity:
 
-- 9300: vxlan_interface (info) - Event|8118|LOG_INFO|AMM|1/1|Interface vxlan 1, configured administratively up
-- 9300: vni_create (info) - Event|8102|LOG_INFO|AMM|1/1|VNI id 9001 created
+- Core-8325-01: ntp (info) - NTP synchronized with server 192.168.1.1
+- Core-8325-01: snmp (info) - Connection with 192.168.1.50 closed
+- Access-6100-03: lldp (info) - LLDP neighbor discovered on port 1/1/5
 
 ## Confidence and Limitations
 - Causality is inferred from temporal and contextual heuristics, not strict proof.

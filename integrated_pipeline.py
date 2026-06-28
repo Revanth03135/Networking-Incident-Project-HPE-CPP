@@ -96,10 +96,10 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                 _SUBTYPE_RULES = [
                     # Standard syslog patterns
                     ("power_failure",          ["power supply", "psu failure", "psu failed", "power failure"]),
-                    ("fan_failure",            ["fan tray", "fan failure", "fan stopped", "speed out of normal range", "fan tray failed"]),
+                    ("fan_failure",            ["fan tray", "fan failure", "fan stopped", "speed out of normal range", "fan tray failed", "speed below threshold"]),
                     ("fan_nominal",            ["speed nominal", "fan nominal"]),
-                    ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                     ("linecard_disabled",    ["linecard slot", "disabled due to"]),
+                    ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                     ("crc_errors",           ["crc error", "excessive crc"]),
                     ("interface_down",       ["off-line", "offline", "link down", "is down", "operational status changed to down"]),
                     ("interface_up",         ["on-line", "online", "link up", "operational status changed to up"]),
@@ -119,7 +119,7 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     ("ospf",                 ["ospf"]),
                     ("dot1x_logout",         ["logged out", "dot1x_logout"]),
                     ("dot1x_failure",        ["authentication failed"]),
-                    ("port_blocked",         ["blocked due to repeated"]),
+                    ("port_blocked",         ["blocked due to repeated", "temporarily blocked", "blocked after repeated"]),
                     ("radius_failure",       ["radius server unreachable", "radius unreachable"]),
                     ("radius_recovered",     ["backup radius", "radius restored"]),
                     ("mac_auth_success",     ["authentication succeeded"]),

@@ -3,40 +3,40 @@
     "event": {
       "event_uid": 1,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "vtep_operational",
+      "type": "physical_link",
+      "subtype": "transceiver",
       "severity": "info",
-      "message": "Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 9.9.9.9 state is operational"
+      "message": "Transceiver on port 1/1/24 removed or signal lost"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
-      "interface_id": null,
+      "interface_id": "1/1/24",
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.968046+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.968046+00:00"
+      "event_time": "2026-05-21T10:00:05+00:00",
+      "ingestion_time": "2026-05-21T10:00:05+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.968046+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 9.9.9.9 state is operational"
+      "message": "May 21 10:00:05 Dist-6300-01 hpe-port-mgr[564]: [port.notice] Transceiver on port 1/1/24 removed or signal lost"
     }
   },
   {
     "event": {
       "event_uid": 2,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "vtep_operational",
+      "type": "physical_link",
+      "subtype": "interface_down",
       "severity": "info",
-      "message": "Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 6.6.6.6 state is operational"
+      "message": "Link down on interface 1/1/24"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -46,24 +46,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.967967+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.967967+00:00"
+      "event_time": "2026-05-21T10:00:06+00:00",
+      "ingestion_time": "2026-05-21T10:00:06+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.967967+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 6.6.6.6 state is operational"
+      "message": "May 21 10:00:06 Dist-6300-01 hpe-port-mgr[564]: [port.info] Link down on interface 1/1/24"
     }
   },
   {
     "event": {
       "event_uid": 3,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "vtep_operational",
-      "severity": "info",
-      "message": "Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 4.4.4.4 state is operational"
+      "type": "routing",
+      "subtype": "ospf_neighbor_down",
+      "severity": "warning",
+      "message": "OSPF neighbor 10.10.10.2 on interface 1/1/24 changed state from FULL to DOWN"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -73,24 +73,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.967882+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.967882+00:00"
+      "event_time": "2026-05-21T10:00:07+00:00",
+      "ingestion_time": "2026-05-21T10:00:07+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.967882+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 4.4.4.4 state is operational"
+      "message": "May 21 10:00:07 Dist-6300-01 hpe-routing[645]: [ospf.warn] OSPF neighbor 10.10.10.2 on interface 1/1/24 changed state from FULL to DOWN"
     }
   },
   {
     "event": {
       "event_uid": 4,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "vtep_operational",
-      "severity": "info",
-      "message": "Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 5.5.5.5 state is operational"
+      "type": "routing",
+      "subtype": "bgp_session_lost",
+      "severity": "warning",
+      "message": "BGP peer 10.10.10.2 session lost"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -100,24 +100,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.967803+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.967803+00:00"
+      "event_time": "2026-05-21T10:00:08+00:00",
+      "ingestion_time": "2026-05-21T10:00:08+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.967803+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 5.5.5.5 state is operational"
+      "message": "May 21 10:00:08 Dist-6300-01 hpe-routing[645]: [bgp.warn] BGP peer 10.10.10.2 session lost"
     }
   },
   {
     "event": {
       "event_uid": 5,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "vtep_operational",
+      "type": "service",
+      "subtype": "ntp",
       "severity": "info",
-      "message": "Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 8.8.8.8 state is operational"
+      "message": "NTP synchronized with server 192.168.1.1"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -127,105 +127,105 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.967724+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.967724+00:00"
+      "event_time": "2026-05-21T10:00:12+00:00",
+      "ingestion_time": "2026-05-21T10:00:12+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.967724+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 8.8.8.8 state is operational"
+      "message": "May 21 10:00:12 Core-8325-01 ntpd[210]: [daemon.notice] NTP synchronized with server 192.168.1.1"
     }
   },
   {
     "event": {
       "event_uid": 6,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "vtep_operational",
-      "severity": "info",
-      "message": "Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 2.2.2.2 state is operational"
+      "type": "access_control",
+      "subtype": "dot1x_failure",
+      "severity": "error",
+      "message": "802.1x: Authentication failed for client AA:BB:CC:DD:EE:01 on port 1/1/10"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Access-6100-02",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
-      "interface_id": null,
+      "interface_id": "1/1/10",
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.967644+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.967644+00:00"
+      "event_time": "2026-05-21T10:00:20+00:00",
+      "ingestion_time": "2026-05-21T10:00:20+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.967644+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 2.2.2.2 state is operational"
+      "message": "May 21 10:00:20 Access-6100-02 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client AA:BB:CC:DD:EE:01 on port 1/1/10"
     }
   },
   {
     "event": {
       "event_uid": 7,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "vtep_operational",
-      "severity": "info",
-      "message": "Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 3.3.3.3 state is operational"
+      "type": "access_control",
+      "subtype": "dot1x_failure",
+      "severity": "error",
+      "message": "802.1x: Authentication failed for client AA:BB:CC:DD:EE:01 on port 1/1/10"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Access-6100-02",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
-      "interface_id": null,
+      "interface_id": "1/1/10",
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.967562+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.967562+00:00"
+      "event_time": "2026-05-21T10:00:23+00:00",
+      "ingestion_time": "2026-05-21T10:00:23+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.967562+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 3.3.3.3 state is operational"
+      "message": "May 21 10:00:23 Access-6100-02 hpe-authd[589]: [auth.err] 802.1x: Authentication failed for client AA:BB:CC:DD:EE:01 on port 1/1/10"
     }
   },
   {
     "event": {
       "event_uid": 8,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "vtep_operational",
-      "severity": "info",
-      "message": "Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 7.7.7.7 state is operational"
+      "type": "access_control",
+      "subtype": "port_blocked",
+      "severity": "warning",
+      "message": "Port 1/1/10 temporarily blocked after repeated authentication failures"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Access-6100-02",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
-      "interface_id": null,
+      "interface_id": "1/1/10",
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.967448+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.967448+00:00"
+      "event_time": "2026-05-21T10:00:26+00:00",
+      "ingestion_time": "2026-05-21T10:00:26+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.967448+00:00 9300 tunneld[1130]: Event|8110|LOG_INFO|AMM|1/1|Vtep-Peer 7.7.7.7 state is operational"
+      "message": "May 21 10:00:26 Access-6100-02 hpe-security[710]: [security.warn] Port 1/1/10 temporarily blocked after repeated authentication failures"
     }
   },
   {
     "event": {
       "event_uid": 9,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_operational",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 9.9.9.9 forwarding_state is operational"
+      "type": "hardware",
+      "subtype": "power_failure",
+      "severity": "critical",
+      "message": "Power supply PSU-2 failure detected"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -235,24 +235,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.897872+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.897872+00:00"
+      "event_time": "2026-05-21T10:00:35+00:00",
+      "ingestion_time": "2026-05-21T10:00:35+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.897872+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 9.9.9.9 forwarding_state is operational"
+      "message": "May 21 10:00:35 Core-8325-01 hpe-ptm[505]: [hw.crit] Power supply PSU-2 failure detected"
     }
   },
   {
     "event": {
       "event_uid": 10,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_add",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 9.9.9.9"
+      "type": "hardware",
+      "subtype": "fan_failure",
+      "severity": "warning",
+      "message": "Fan tray 1 speed below threshold"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -262,24 +262,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.896928+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.896928+00:00"
+      "event_time": "2026-05-21T10:00:38+00:00",
+      "ingestion_time": "2026-05-21T10:00:38+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.896928+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 9.9.9.9"
+      "message": "May 21 10:00:38 Core-8325-01 hpe-ptm[505]: [hw.warn] Fan tray 1 speed below threshold"
     }
   },
   {
     "event": {
       "event_uid": 11,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_operational",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 6.6.6.6 forwarding_state is operational"
+      "type": "hardware",
+      "subtype": "thermal",
+      "severity": "warning",
+      "message": "Internal temperature exceeded warning threshold"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -289,24 +289,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.892600+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.892600+00:00"
+      "event_time": "2026-05-21T10:00:41+00:00",
+      "ingestion_time": "2026-05-21T10:00:41+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.892600+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 6.6.6.6 forwarding_state is operational"
+      "message": "May 21 10:00:41 Core-8325-01 hpe-ptm[505]: [hw.warn] Internal temperature exceeded warning threshold"
     }
   },
   {
     "event": {
       "event_uid": 12,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_add",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 6.6.6.6"
+      "type": "hardware",
+      "subtype": "linecard_disabled",
+      "severity": "critical",
+      "message": "Line card 2 disabled due to thermal protection"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -316,51 +316,51 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.891651+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.891651+00:00"
+      "event_time": "2026-05-21T10:00:44+00:00",
+      "ingestion_time": "2026-05-21T10:00:44+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.891651+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 6.6.6.6"
+      "message": "May 21 10:00:44 Core-8325-01 hpe-system[720]: [system.crit] Line card 2 disabled due to thermal protection"
     }
   },
   {
     "event": {
       "event_uid": 13,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_operational",
+      "type": "inventory",
+      "subtype": "lldp",
       "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 4.4.4.4 forwarding_state is operational"
+      "message": "LLDP neighbor discovered on port 1/1/5"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Access-6100-03",
       "ip": null,
       "vendor": "unknown",
       "os": null
     },
     "network": {
-      "interface_id": null,
+      "interface_id": "1/1/5",
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.887328+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.887328+00:00"
+      "event_time": "2026-05-21T10:00:50+00:00",
+      "ingestion_time": "2026-05-21T10:00:50+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.887328+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 4.4.4.4 forwarding_state is operational"
+      "message": "May 21 10:00:50 Access-6100-03 hpe-lldpd[612]: [lldp.info] LLDP neighbor discovered on port 1/1/5"
     }
   },
   {
     "event": {
       "event_uid": 14,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_add",
+      "type": "configuration",
+      "subtype": "config_change",
       "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 4.4.4.4"
+      "message": "Configuration saved by user admin via SSH"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Dist-6300-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -370,24 +370,24 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.886351+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.886351+00:00"
+      "event_time": "2026-05-21T10:00:55+00:00",
+      "ingestion_time": "2026-05-21T10:00:55+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.886351+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 4.4.4.4"
+      "message": "May 21 10:00:55 Dist-6300-01 hpe-config[512]: [config.info] Configuration saved by user admin via SSH"
     }
   },
   {
     "event": {
       "event_uid": 15,
       "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_operational",
+      "type": "service",
+      "subtype": "snmp",
       "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 5.5.5.5 forwarding_state is operational"
+      "message": "Connection with 192.168.1.50 closed"
     },
     "device": {
-      "hostname": "9300",
+      "hostname": "Core-8325-01",
       "ip": null,
       "vendor": "unknown",
       "os": null
@@ -397,713 +397,11 @@
       "vlan": null
     },
     "timestamps": {
-      "event_time": "2026-04-07T08:20:39.881816+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.881816+00:00"
+      "event_time": "2026-05-21T10:01:00+00:00",
+      "ingestion_time": "2026-05-21T10:01:00+00:00"
     },
     "raw": {
-      "message": "2026-04-07T08:20:39.881816+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 5.5.5.5 forwarding_state is operational"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 16,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_add",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 5.5.5.5"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.880805+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.880805+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.880805+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 5.5.5.5"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 17,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_operational",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 8.8.8.8 forwarding_state is operational"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.876454+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.876454+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.876454+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 8.8.8.8 forwarding_state is operational"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 18,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_add",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 8.8.8.8"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.875471+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.875471+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.875471+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 8.8.8.8"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 19,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_operational",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 2.2.2.2 forwarding_state is operational"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.871060+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.871060+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.871060+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 2.2.2.2 forwarding_state is operational"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 20,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_add",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 2.2.2.2"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.869972+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.869972+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.869972+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 2.2.2.2"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 21,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_operational",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 3.3.3.3 forwarding_state is operational"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.865818+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.865818+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.865818+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 3.3.3.3 forwarding_state is operational"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 22,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_add",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 3.3.3.3"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.864820+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.864820+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.864820+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 3.3.3.3"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 23,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_operational",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 7.7.7.7 forwarding_state is operational"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.861162+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.861162+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.861162+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 7.7.7.7 forwarding_state is operational"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 24,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_add",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 7.7.7.7"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.861076+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.861076+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.861076+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop add received for tunnel 7.7.7.7"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 25,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "vni_create",
-      "severity": "info",
-      "message": "Event|8102|LOG_INFO|AMM|1/1|VNI id 9001 created"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.860973+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.860973+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.860973+00:00 9300 ops-switchd[1489]: Event|8102|LOG_INFO|AMM|1/1|VNI id 9001 created"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 26,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "vxlan_interface",
-      "severity": "info",
-      "message": "Event|8118|LOG_INFO|AMM|1/1|Interface vxlan 1, configured administratively up"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.806661+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.806661+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.806661+00:00 9300 tunneld[1130]: Event|8118|LOG_INFO|AMM|1/1|Interface vxlan 1, configured administratively up"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 27,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_activating",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 9.9.9.9 forwarding_state is activating"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.780976+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.780976+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.780976+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 9.9.9.9 forwarding_state is activating"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 28,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_delete",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 9.9.9.9"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.775960+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.775960+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.775960+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 9.9.9.9"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 29,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_activating",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 6.6.6.6 forwarding_state is activating"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.775869+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.775869+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.775869+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 6.6.6.6 forwarding_state is activating"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 30,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_delete",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 6.6.6.6"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.771854+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.771854+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.771854+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 6.6.6.6"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 31,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_activating",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 4.4.4.4 forwarding_state is activating"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.771770+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.771770+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.771770+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 4.4.4.4 forwarding_state is activating"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 32,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_delete",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 4.4.4.4"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.767683+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.767683+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.767683+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 4.4.4.4"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 33,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_activating",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 5.5.5.5 forwarding_state is activating"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.767598+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.767598+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.767598+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 5.5.5.5 forwarding_state is activating"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 34,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_delete",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 5.5.5.5"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.763512+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.763512+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.763512+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 5.5.5.5"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 35,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_activating",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 8.8.8.8 forwarding_state is activating"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.763416+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.763416+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.763416+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 8.8.8.8 forwarding_state is activating"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 36,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_delete",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 8.8.8.8"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.759318+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.759318+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.759318+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 8.8.8.8"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 37,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_activating",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 2.2.2.2 forwarding_state is activating"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.759230+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.759230+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.759230+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 2.2.2.2 forwarding_state is activating"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 38,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_delete",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 2.2.2.2"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.755156+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.755156+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.755156+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 2.2.2.2"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 39,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_activating",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 3.3.3.3 forwarding_state is activating"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.755069+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.755069+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.755069+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 3.3.3.3 forwarding_state is activating"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 40,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_nexthop_delete",
-      "severity": "info",
-      "message": "Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 3.3.3.3"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.751148+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.751148+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.751148+00:00 9300 ops-switchd[1489]: Event|8119|LOG_INFO|AMM|1/1|Nexthop delete received for tunnel 3.3.3.3"
-    }
-  },
-  {
-    "event": {
-      "event_uid": 41,
-      "event_id": null,
-      "type": "tunnel",
-      "subtype": "tunnel_activating",
-      "severity": "info",
-      "message": "Event|8120|LOG_INFO|AMM|1/1|Tunnel 7.7.7.7 forwarding_state is activating"
-    },
-    "device": {
-      "hostname": "9300",
-      "ip": null,
-      "vendor": "unknown",
-      "os": null
-    },
-    "network": {
-      "interface_id": null,
-      "vlan": null
-    },
-    "timestamps": {
-      "event_time": "2026-04-07T08:20:39.751052+00:00",
-      "ingestion_time": "2026-04-07T08:20:39.751052+00:00"
-    },
-    "raw": {
-      "message": "2026-04-07T08:20:39.751052+00:00 9300 ops-switchd[1489]: Event|8120|LOG_INFO|AMM|1/1|Tunnel 7.7.7.7 forwarding_state is activating"
+      "message": "May 21 10:01:00 Core-8325-01 snmpd[841]: [daemon.notice] Connection with 192.168.1.50 closed"
     }
   }
 ]
