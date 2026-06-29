@@ -101,13 +101,13 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     ("linecard_disabled",    ["linecard slot", "disabled due to"]),
                     ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                     ("crc_errors",           ["crc error", "excessive crc"]),
-                    ("interface_down",       ["off-line", "offline", "link down", "is down", "operational status changed to down"]),
+                    ("interface_down",       ["off-line", "offline", "link down", "is down", "operational status changed to down", "administratively down", "l3-interface", "interface deleted"]),
                     ("interface_up",         ["on-line", "online", "link up", "operational status changed to up"]),
                     ("stp_topology_change",  ["topology change", "mstp", "recalculating spanning tree", "spanning tree"]),
-                    ("ospf_interface_down",  ["ptp to down"]),
+                    ("ospf_interface_down",  ["ptp to down", "changed from bdr to", "changed from dr to", "input: if_interface_down", "input: if_dr_other"]),
                     ("ospf_interface_up",    ["down to ptp"]),
-                    ("ospf_neighbor_down",   ["full to down", "rpd_ospf_nbrdown", "ospf-5-adjchg", "down"]),
-                    ("ospf_neighbor_up",     ["down to full", "rpd_ospf_nbrup", "ospf-5-adjchg", "up"]),
+                    ("ospf_neighbor_down",   ["full to down", "rpd_ospf_nbrdown", "ospf-5-adjchg", "down", "adjchg:", "full -> down"]),
+                    ("ospf_neighbor_up",     ["down to full", "rpd_ospf_nbrup", "ospf-5-adjchg", "up", "down -> full"]),
                     ("route_recalculation_started",   ["routing table recalculation started"]),
                     ("route_recalculation_completed", ["routing table recalculation completed"]),
                     ("routes_withdrawn",    ["routes withdrawn"]),
@@ -133,12 +133,13 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     ("ntp",                 ["ntp"]),
                     ("snmp",                ["snmpd", "snmp"]),
                     # HPE 9300 / VXLAN / EVPN patterns — must be checked before generic "vlan"
-                    ("tunnel_nexthop_delete", ["nexthop delete"]),
+                    ("tunnel_nexthop_delete", ["nexthop delete", "nexthop", "resolved nexthop", "nexthop removed"]),
                     ("tunnel_nexthop_add",    ["nexthop add"]),
-                    ("tunnel_activating",     ["forwarding_state is activating"]),
-                    ("tunnel_operational",    ["forwarding_state is operational"]),
+                    ("tunnel_activating",     ["forwarding_state is activating", "state is activating"]),
+                    ("tunnel_operational",    ["forwarding_state is operational", "state is operational"]),
+                    ("vtep_deleted",          ["has been deleted", "vtep removed", "vtep deleted"]),
                     ("vtep_operational",      ["vtep-peer", "vtep_peer"]),
-                    ("vni_create",            ["vni id", "vni_id"]),
+                    ("vni_delete",            ["vni:", "vni is deleted", "vni id", "vni_id"]),
                     ("vxlan_interface",       ["interface vxlan", "vxlan"]),
                     ("high_cpu",              ["cpu utilization", "high cpu"]),
                     ("high_memory",           ["memory utilization", "memory leak"]),
@@ -201,8 +202,15 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     for st, keywords in _SUBTYPE_RULES:
                         if st in ("ospf_neighbor_down", "ospf_neighbor_up", "bgp_session_lost", "bgp_session_established"):
                             proto = "ospf" if "ospf" in st else "bgp"
-                            if proto in chunk_lower and any(kw in chunk_lower for kw in keywords):
-                                detected_subtype = st
+                            # Unambiguous keywords that are definitively OSPF/BGP — no protocol guard needed
+                            _UNAMBIGUOUS = {"full to down", "down to full", "adjchg:", "full -> down", "down -> full",
+                                            "rpd_ospf_nbrdown", "rpd_ospf_nbrup", "ospf-5-adjchg", "bgp-5-adjchange"}
+                            for kw in keywords:
+                                if kw in chunk_lower:
+                                    if kw in _UNAMBIGUOUS or proto in chunk_lower:
+                                        detected_subtype = st
+                                        break
+                            if detected_subtype != "raw":
                                 break
                         else:
                             if any(kw in chunk_lower for kw in keywords):
@@ -230,7 +238,7 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                             detected_type = "inventory"
                         elif st in ("ntp", "snmp"):
                             detected_type = "service"
-                        elif st in ("tunnel_nexthop_delete", "tunnel_nexthop_add", "tunnel_activating", "tunnel_operational", "vtep_operational", "vni_create", "vxlan_interface"):
+                        elif st in ("tunnel_nexthop_delete", "tunnel_nexthop_add", "tunnel_activating", "tunnel_operational", "vtep_operational", "vtep_deleted", "vni_create", "vni_delete", "vxlan_interface"):
                             detected_type = "tunnel"
                         elif st in ("high_cpu", "high_memory", "queue_drop", "buffer_overflow"):
                             detected_type = "performance"
@@ -426,11 +434,14 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
     valid_roots = [r for r in roots if r.get('score', 0) >= 0]
     if valid_roots:
         for root in valid_roots:
+            is_wf = root['incident_id'].startswith("WORKFLOW")
+            prefix = "Workflow" if is_wf else "Incident"
+            label = "Initiating Event" if is_wf else "Root Cause"
             lines.append(
-        f"- Incident {root['incident_id']} "
-        f"-> {root['subtype']} "
-        f"(device={root['device']}, score={root['score']})"
-    )
+                f"- {prefix} {root['incident_id']} "
+                f"-> {label}: {root['subtype']} "
+                f"(device={root['device']}, score={root['score']})"
+            )
     else:
         lines.append("- No high-confidence root trigger was detected")
 

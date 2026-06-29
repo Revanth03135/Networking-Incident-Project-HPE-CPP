@@ -858,13 +858,14 @@ Write 3-5 sentences covering:
 - Overall incident severity
 - Primary operational impact on the network
 
-### SECTION 2: Root Cause Analysis
-Select the MOST PROBABLE root cause following this priority:
+### SECTION 2: Root Cause / Initiating Event Analysis
+Select the MOST PROBABLE root cause (for incidents) or initiating event (for workflows) following this priority:
   Layer 0 Hardware > Layer 1 Physical > Layer 3 Routing > Layer 2 Switching > Security
 
-For each incident:
-- State the probable root cause event (device, port, subtype, timestamp)
-- Assign a Root Cause Confidence % based on causal link count and confidence scores:
+For each incident/workflow:
+- State the probable root cause or initiating event (device, port, subtype, timestamp)
+- Clearly state if this is an "Initiating Event" (for routine operational workflows) or a "Root Cause" (for unexpected network incidents).
+- Assign a Confidence % based on causal link count and confidence scores:
   - High confidence (>75%): strong causal chain + multiple correlated events
   - Medium confidence (50-75%): partial causal chain, same device/port
   - Low confidence (<50%): temporal correlation only
@@ -1072,15 +1073,18 @@ def build_fallback_report(payload):
 
     lines.extend([
         "",
-        "## Root Cause Analysis",
+        "## Root Cause / Initiating Event Analysis",
     ])
 
     for inc in incidents[:5]:
         root_events = inc.get("important_events", [])[:1]
         if root_events:
             root = root_events[0]
+            is_wf = inc.get('incident_id', '').startswith("WORKFLOW")
+            prefix = "Workflow" if is_wf else "Incident"
+            label = "initiating event" if is_wf else "probable root cause"
             lines.append(
-                f"- {inc.get('incident_id')}: probable trigger at {root.get('device', 'unknown')} ({root.get('event_type', 'unknown')})"
+                f"- {prefix} {inc.get('incident_id')}: {label} at {root.get('device', 'unknown')} ({root.get('event_type', 'unknown')})"
             )
 
     lines.extend([

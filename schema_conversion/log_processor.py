@@ -817,13 +817,13 @@ class LogProcessor:
                 ("linecard_disabled",    ["linecard slot", "disabled due to"]),
                 ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                 ("crc_errors",           ["crc error", "excessive crc"]),
-                ("interface_down",       ["off-line", "offline", "link down", "is down", "state to down", "changed state to down", "operational status changed to down"]),
+                ("interface_down",       ["off-line", "offline", "link down", "is down", "state to down", "changed state to down", "operational status changed to down", "administratively down", "l3-interface", "interface deleted"]),
                 ("interface_up",         ["on-line", "online", "link up", "state to up", "changed state to up", "operational status changed to up"]),
                 ("stp_topology_change",  ["topology change", "mstp", "recalculating spanning tree", "spanning tree"]),
-                ("ospf_interface_down",  ["ptp to down"]),
+                ("ospf_interface_down",  ["ptp to down", "changed from bdr to", "changed from dr to", "input: if_interface_down", "input: if_dr_other"]),
                 ("ospf_interface_up",    ["down to ptp"]),
-                ("ospf_neighbor_down",   ["full to down"]),
-                ("ospf_neighbor_up",     ["down to full"]),
+                ("ospf_neighbor_down",   ["full to down", "adjchg:", "full -> down"]),
+                ("ospf_neighbor_up",     ["down to full", "down -> full"]),
                 ("route_recalculation_started",   ["routing table recalculation started"]),
                 ("route_recalculation_completed", ["routing table recalculation completed"]),
                 ("routes_withdrawn",    ["routes withdrawn"]),
@@ -848,12 +848,13 @@ class LogProcessor:
                 ("transceiver",          ["transceiver", "signal lost"]),
                 ("ntp",                  ["ntp", "synchronized with", "synchronized to"]),
                 ("snmp",                 ["snmpd", "snmp"]),
-                ("tunnel_nexthop_delete", ["nexthop delete"]),
+                ("tunnel_nexthop_delete", ["nexthop delete", "nexthop", "resolved nexthop", "nexthop removed"]),
                 ("tunnel_nexthop_add",    ["nexthop add"]),
-                ("tunnel_activating",     ["forwarding_state is activating"]),
-                ("tunnel_operational",    ["forwarding_state is operational"]),
+                ("tunnel_activating",     ["forwarding_state is activating", "state is activating"]),
+                ("tunnel_operational",    ["forwarding_state is operational", "state is operational"]),
+                ("vtep_deleted",          ["has been deleted", "vtep removed", "vtep deleted"]),
                 ("vtep_operational",      ["vtep-peer", "vtep_peer"]),
-                ("vni_create",            ["vni id", "vni_id"]),
+                ("vni_delete",            ["vni:", "vni is deleted", "vni id", "vni_id"]),
                 ("vxlan_interface",       ["interface vxlan", "vxlan"]),
                 ("high_cpu",              ["cpu utilization", "high cpu"]),
                 ("high_memory",           ["memory utilization", "memory leak"]),
@@ -894,7 +895,7 @@ class LogProcessor:
                 "ntp": "service", "snmp": "service",
                 "tunnel_nexthop_delete": "tunnel", "tunnel_nexthop_add": "tunnel",
                 "tunnel_activating": "tunnel", "tunnel_operational": "tunnel",
-                "vtep_operational": "tunnel", "vni_create": "tunnel",
+                "vtep_operational": "tunnel", "vtep_deleted": "tunnel", "vni_create": "tunnel", "vni_delete": "tunnel",
                 "vxlan_interface": "tunnel",
                 "high_cpu": "performance", "high_memory": "performance",
                 "queue_drop": "performance", "buffer_overflow": "performance",
@@ -911,9 +912,15 @@ class LogProcessor:
             for st, keywords in _SUBTYPE_RULES:
                 if st in ("ospf_neighbor_down", "ospf_neighbor_up", "bgp_session_lost", "bgp_session_established"):
                     proto = "ospf" if "ospf" in st else "bgp"
-                    if proto in msg_lower and any(kw in msg_lower for kw in keywords):
-                        detected_subtype = st
-                        detected_type = _TYPE_MAP.get(st, "log")
+                    _UNAMBIGUOUS = {"full to down", "down to full", "adjchg:", "full -> down", "down -> full",
+                                    "rpd_ospf_nbrdown", "rpd_ospf_nbrup", "ospf-5-adjchg", "bgp-5-adjchange"}
+                    for kw in keywords:
+                        if kw in msg_lower:
+                            if kw in _UNAMBIGUOUS or proto in msg_lower:
+                                detected_subtype = st
+                                detected_type = _TYPE_MAP.get(st, "log")
+                                break
+                    if detected_subtype != "raw":
                         break
                 else:
                     if any(kw in msg_lower for kw in keywords):

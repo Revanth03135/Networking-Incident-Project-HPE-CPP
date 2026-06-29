@@ -131,9 +131,22 @@ COOCCURRING_SUBTYPES = {
     frozenset({"transceiver", "bgp"}),
     # VXLAN co-occurrences
     frozenset({"tunnel_nexthop_delete", "tunnel_activating"}),
+    frozenset({"tunnel_nexthop_delete", "vtep_deleted"}),
     frozenset({"tunnel_nexthop_delete", "vtep_down"}),
     frozenset({"tunnel_activating", "tunnel_operational"}),
     frozenset({"interface_down", "tunnel_nexthop_delete"}),
+    # EVPN/VXLAN teardown chain — interface shutdown cascading into tunnel teardown
+    frozenset({"interface_down", "vtep_deleted"}),
+    frozenset({"interface_down", "vni_delete"}),
+    frozenset({"interface_down", "tunnel_activating"}),
+    frozenset({"ospf_neighbor_down", "tunnel_nexthop_delete"}),
+    frozenset({"ospf_neighbor_down", "vtep_deleted"}),
+    frozenset({"ospf_interface_down", "tunnel_nexthop_delete"}),
+    frozenset({"ospf_interface_down", "vtep_deleted"}),
+    frozenset({"tunnel_nexthop_delete", "vni_delete"}),
+    frozenset({"vtep_deleted", "vni_delete"}),
+    frozenset({"vtep_deleted", "tunnel_activating"}),
+    frozenset({"tunnel_activating", "vni_delete"}),
     # Performance co-occurrences
     frozenset({"high_cpu", "ospf_neighbor_down"}),
     frozenset({"high_cpu", "bgp"}),
@@ -225,12 +238,17 @@ def _normalize_subtype(e: Dict[str, Any]) -> str:
     if "mac-auth" in txt: return "mac_auth"
     if "transceiver" in txt: return "transceiver"
     if "lldp" in txt: return "lldp"
-    if "nexthop delete" in txt: return "tunnel_nexthop_delete"
+    if "nexthop delete" in txt or "nexthop" in txt and "removed" in txt: return "tunnel_nexthop_delete"
     if "nexthop add" in txt: return "tunnel_nexthop_add"
     if "activating" in txt: return "tunnel_activating"
     if "operational" in txt and "tunnel" in txt: return "tunnel_operational"
-    if "vtep" in txt: return "vtep_down" if "down" in txt else "vtep_operational"
-    if "vni" in txt: return "vni_create"
+    if "vtep" in txt:
+        if "deleted" in txt or "removed" in txt: return "vtep_deleted"
+        if "down" in txt: return "vtep_down"
+        return "vtep_operational"
+    if "vni" in txt:
+        if "deleted" in txt or "removed" in txt: return "vni_delete"
+        return "vni_create"
     if "vxlan" in txt: return "vxlan_interface"
     if "vlan" in txt: return "vlan"
     if "snmp" in txt: return "snmp"
@@ -350,6 +368,15 @@ def compatibility_score(
                 score += 0.30 # Strong bonus to bind same-device L1->L3 cascades
             else:
                 score -= 0.10
+
+    # Allow same-device tunnel events to merge with physical_link/routing events
+    # (EVPN/VXLAN teardown cascades propagate from L1 → L3 → tunnel on same device)
+    if "tunnel" in {da, db} and bool({"physical_link", "routing"} & {da, db}):
+        if dev_a == dev_b and dev_a != "unknown":
+            ta_val, tb_val = event_time(a), event_time(b)
+            lag_val = abs((tb_val - ta_val).total_seconds())
+            if lag_val <= 5:
+                score += 0.35  # Strong bond for same-device L1→tunnel cascade
 
     # Penalize bridging unrelated noise (service, inventory) to critical infrastructure
     if bool({"service", "inventory"} & {da, db}) and bool({"hardware", "physical_link", "routing", "tunnel", "performance", "high_availability"} & {da, db}):
