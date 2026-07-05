@@ -400,179 +400,565 @@ def generate_visualization_html(timeline_incidents: List[Dict], output_path: Pat
 
 
 def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dict, output_path: Path) -> None:
-    total_events = sum(len(i.get("events", [])) for i in timeline_incidents)
-    total_links = causal_summary.get("total_causal_links", 0)
-    roots = causal_summary.get("root_causes", [])
-    devices = causal_summary.get("affected_devices", [])
+    """Generate a structured investigation report with clear category segregation."""
+    from datetime import datetime, timezone
 
+    now_str   = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now_local = datetime.now().strftime("%Y-%m-%d")
+
+    # -- Pull data from causal summary
+    causal_incidents   = causal_summary.get("incidents", [])
+    alert_incidents    = causal_summary.get("alert_incidents", [])
     workflow_incidents = causal_summary.get("workflow_incidents", [])
-    causal_incidents = causal_summary.get("incidents", [])
-    alert_incidents = causal_summary.get("alert_incidents", [])
-    report_incidents = causal_incidents if causal_incidents else (timeline_incidents if not workflow_incidents and not causal_summary.get("noise_incidents") else [])
-    
-    # Ensure standalone alerts (like dropped BGP events) are included in the report
-    for alert in alert_incidents:
-        if alert not in report_incidents:
-            report_incidents.append(alert)
+    noise_incidents    = causal_summary.get("noise_incidents", [])
+    total_links        = causal_summary.get("total_causal_links", 0)
+    devices            = causal_summary.get("affected_devices", [])
 
-    total_incidents = len(report_incidents)
+    total_events    = sum(len(i.get("events", [])) for i in timeline_incidents)
+    n_reconstructed = len(causal_incidents)
+    n_alerts        = len(alert_incidents)
+    n_workflows     = len(workflow_incidents)
+    n_routine       = sum(len(i.get("events", [])) for i in noise_incidents)
+    if n_routine == 0:
+        n_routine = len(noise_incidents)
 
-    lines = [
+    highest_sev = "Info"
+    sev_rank = {"critical": 4, "error": 3, "warning": 2, "info": 1}
+    for inc_list in [causal_incidents, alert_incidents]:
+        for inc in inc_list:
+            for e in inc.get("events", []):
+                s = e.get("severity", "info").lower()
+                if sev_rank.get(s, 0) > sev_rank.get(highest_sev.lower(), 0):
+                    highest_sev = s.capitalize()
+
+    device_str = ", ".join(devices) if devices else "N/A"
+
+    active     = any(inc.get("status", "").lower() == "active"     for inc in causal_incidents)
+    recovering = any(inc.get("status", "").lower() == "recovering" for inc in causal_incidents)
+    if active:
+        status_str = "Active — Unresolved incidents require immediate attention"
+    elif recovering:
+        status_str = "Recovering — Incidents partially resolved"
+    elif n_reconstructed == 0:
+        status_str = "Stable — No reconstructed incidents detected"
+    else:
+        status_str = "Resolved"
+
+    def _fmt_time(t):
+        if not t:
+            return "—"
+        return str(t)[:19].replace("T", " ") + " UTC"
+
+    def _humanize(s):
+        return str(s).replace("_", " ").title()
+
+    lines = []
+
+    # 1. EXECUTIVE SUMMARY
+    lines += [
         "# Network Incident Investigation Report",
         "",
-        f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}",
+        "---",
         "",
-        "## Executive Summary",
-        f"- Total incidents reconstructed: {total_incidents}",
-        f"- Total events analyzed: {total_events}",
-        f"- Total causal links inferred: {total_links}",
-        f"- Affected devices: {', '.join(devices) if devices else 'N/A'}",
+        "## 1. Executive Summary",
         "",
-        "## Probable Initiating Triggers",
+        "| Field | Value |",
+        "|---|---|",
+        f"| **Investigation Date** | {now_local} |",
+        f"| **Device(s) Analyzed** | {device_str} |",
+        f"| **Logs Analyzed** | {total_events} |",
+        f"| **Reconstructed Incidents** | **{n_reconstructed}** — proven causal chain + RCA |",
+        f"| **Standalone Alerts** | {n_alerts} |",
+        f"| **Operational Workflows** | {n_workflows} |",
+        f"| **Routine Informational Events** | {n_routine} |",
+        f"| **Highest Severity Observed** | {highest_sev} |",
+        f"| **Overall Investigation Status** | {status_str} |",
+        "",
     ]
 
-    valid_roots = [r for r in roots if r.get('score', 0) >= 0]
-    if valid_roots:
-        for root in valid_roots:
-            is_wf = root['incident_id'].startswith("WORKFLOW")
-            prefix = "Workflow" if is_wf else "Incident"
-            label = "Initiating Event" if is_wf else "Root Cause"
-            lines.append(
-                f"- {prefix} {root['incident_id']} "
-                f"-> {label}: {root['subtype']} "
-                f"(device={root['device']}, score={root['score']})"
-            )
+    if n_reconstructed == 0:
+        lines += [
+            "> No incidents with a proven causal chain were detected.",
+            "> Only standalone alerts and operational workflows were found.",
+            "",
+        ]
     else:
-        lines.append("- No high-confidence root trigger was detected")
+        lines += [
+            f"> **{n_reconstructed} incident(s)** have a proven causal chain and receive full Root Cause Analysis below.",
+            f"> The remaining {n_alerts + n_workflows + n_routine} events are categorized as alerts ({n_alerts}), "
+            f"workflows ({n_workflows}), or routine ({n_routine}) — none of these are incidents.",
+            "",
+        ]
 
-    lines.extend([
+    # 2. INVESTIGATION SCOPE
+    all_times = []
+    for inc in timeline_incidents:
+        if inc.get("start_time"): all_times.append(inc["start_time"])
+        if inc.get("end_time"):   all_times.append(inc["end_time"])
+    t_start = _fmt_time(min(all_times)) if all_times else "N/A"
+    t_end   = _fmt_time(max(all_times)) if all_times else "N/A"
+
+    cat_counts: dict = {}
+    for inc in timeline_incidents:
+        for e in inc.get("events", []):
+            cat = e.get("normalized_domain") or e.get("type", "unknown")
+            cat_counts[cat] = cat_counts.get(cat, 0) + 1
+    cat_str = " | ".join(f"{k.replace('_', ' ').title()} ({v})" for k, v in sorted(cat_counts.items()))
+
+    lines += [
+        "---",
         "",
-        "## Incident Overview",
-    ])
-    
-    if not report_incidents:
-        lines.append("- No actionable incidents detected.")
-    
-    for inc in report_incidents:
-        root = inc.get("root_cause") or {}
-        # Derive primary_issue from root cause subtype, then incident_type, then domain
-        primary_issue = inc.get('summary', {}).get('primary_issue')
-        if not primary_issue or primary_issue == 'unknown':
-            primary_issue = root.get('normalized_subtype') or root.get('subtype')
-        if not primary_issue or primary_issue == 'raw':
-            primary_issue = inc.get('incident_type') or inc.get('classification', 'unclassified')
-        lines.append(
-            "- "
-            f"{inc.get('incident_id', 'N/A')}: events={inc.get('event_count', len(inc.get('events', [])))}, "
-            f"duration={inc.get('duration_sec', 0)}s, "
-            f"primary_issue={primary_issue}"
-        )
-
-    lines.extend([
+        "## 2. Investigation Scope",
         "",
-        "## Detailed Incident Chains",
-    ])
-    
-    for inc in report_incidents:
-        iid = inc.get('incident_id', 'N/A')
-        duration = inc.get('duration_sec', 0)
-        events = inc.get('events', [])
-        failures = [e for e in events if not e.get('is_recovery')]
-        recoveries = [e for e in events if e.get('is_recovery')]
-        
-        if not failures and not recoveries: continue
-            
-        lines.append(f"### {iid}")
-        
-        if failures:
-            lines.append("**Failure Sequence:**")
-            for e in failures:
-                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
-                dup = e.get('duplicate_count', 1)
-                dup_str = f" ×{dup}" if dup > 1 else ""
-                lines.append(f"- {sub}{dup_str} ({e.get('severity', 'info')})")
-        
-        if recoveries:
-            lines.append("")
-            lines.append("**Recovery Sequence:**")
-            for e in recoveries:
-                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
-                dup = e.get('duplicate_count', 1)
-                dup_str = f" ×{dup}" if dup > 1 else ""
-                lines.append(f"- {sub}{dup_str} ({e.get('severity', 'info')})")
-        
-        status = inc.get('status', '')
-        if status:
-            lines.append(f"\n*Status: {status}*")
-        lines.append(f"*Duration: {duration}s*\n")
-        
-    if workflow_incidents:
-        lines.extend([
-            "## Operational Workflows Detected",
-            ""
-        ])
-        for inc in workflow_incidents:
-            iid = inc.get('incident_id', 'N/A')
-            events = inc.get('events', [])
-            
-            # Collapse repeated adjacent events for cleaner summary
-            collapsed_events = []
-            for e in events:
-                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
-                sev = e.get('severity', 'info')
-                evt_str = f"{sub} ({sev})"
-                if collapsed_events and collapsed_events[-1]['str'] == evt_str:
-                    collapsed_events[-1]['count'] += 1
-                else:
-                    collapsed_events.append({'str': evt_str, 'count': 1})
-            
-            lines.append(f"### Workflow: {iid}")
-            lines.append("- **Status:** Successful")
-            lines.append("- **Incident Detected:** No")
-            lines.append("- **Sequence Summary:**")
-            for item in collapsed_events:
-                count_str = f" x{item['count']}" if item['count'] > 1 else ""
-                lines.append(f"  - {item['str']}{count_str}")
-            lines.append("")
+        "| Field | Detail |",
+        "|---|---|",
+        f"| **Device(s)** | {device_str} |",
+        f"| **Time Window** | {t_start} → {t_end} |",
+        f"| **Total Log Events** | {total_events} |",
+        f"| **Event Categories** | {cat_str or 'N/A'} |",
+        f"| **Causal Links Inferred** | {total_links} |",
+        "",
+    ]
 
-    alert_incidents = causal_summary.get("alert_incidents", [])
-    if alert_incidents:
-        lines.extend([
-            "## Standalone Alerts",
-            "The following high-severity events were detected but do not appear to be part of a larger cascading incident:",
-            ""
-        ])
+    # 3. INCIDENT CLASSIFICATION SUMMARY
+    inc_ids_str   = ", ".join(i.get("incident_id", "?") for i in causal_incidents)   or "None"
+    alert_ids_str = ", ".join(i.get("incident_id", "?") for i in alert_incidents)    or "None"
+    wf_ids_str    = ", ".join(i.get("incident_id", "?") for i in workflow_incidents) or "None"
+
+    routine_labels = []
+    for inc in noise_incidents:
+        for e in inc.get("events", []):
+            label = _humanize(e.get("normalized_subtype", e.get("subtype", "?")))
+            if label not in routine_labels:
+                routine_labels.append(label)
+    routine_str = ", ".join(routine_labels) if routine_labels else "None"
+
+    lines += [
+        "---",
+        "",
+        "## 3. Incident Classification Summary",
+        "",
+        "| Category | Count | IDs / Labels |",
+        "|---|---|---|",
+        f"| Logs Analyzed | {total_events} | All parsed log events |",
+        f"| **Reconstructed Incidents (RCA)** | **{n_reconstructed}** | {inc_ids_str} |",
+        f"| Standalone Alerts | {n_alerts} | {alert_ids_str} |",
+        f"| Operational Workflows | {n_workflows} | {wf_ids_str} |",
+        f"| Routine Informational Events | {n_routine} | {routine_str} |",
+        "",
+        "> **How to read this table:** Only Reconstructed Incidents have a proven causal chain.",
+        "> Standalone alerts, workflows, and routine events are **not incidents** — classified separately below.",
+        "",
+    ]
+
+    # 4. RECONSTRUCTED INCIDENTS
+    lines += [
+        "---",
+        "",
+        "## 4. Reconstructed Incidents — Full Root Cause Analysis",
+        "",
+    ]
+
+    if not causal_incidents:
+        lines += ["> No reconstructed incidents found.", ""]
+    else:
+        lines += [
+            f"> Only **{n_reconstructed}** incident(s) below have a proven causal chain.",
+            "> Each section: Incident Overview · Timeline · Root Cause · Cause-Effect Chain · Evidence · Impact · Recommendations",
+            "",
+        ]
+
+    for idx, inc in enumerate(causal_incidents, 1):
+        iid          = inc.get("incident_id", "N/A")
+        status       = inc.get("status", "Unknown")
+        start        = _fmt_time(inc.get("start_time", ""))
+        end          = _fmt_time(inc.get("end_time", ""))
+        duration     = inc.get("duration_sec", 0)
+        events       = inc.get("events", [])
+        root         = inc.get("root_cause") or {}
+        causal_links = inc.get("causal_links", [])
+        seq_list     = inc.get("causal_sequences", [])
+
+        root_subtype = root.get("normalized_subtype") or root.get("subtype", "unknown")
+        root_score   = root.get("root_score", 0)
+        root_msg     = root.get("message", "")
+        root_sev     = (inc.get("severity") or root.get("severity") or "info").capitalize()
+        root_device  = root.get("device", device_str)
+        root_iface   = root.get("interface_id") or "—"
+
+        best_conf = max((s.get("total_confidence", 0) for s in seq_list), default=0)
+        conf_pct  = f"{int(best_conf * 100)}%"
+
+        failures   = [e for e in events if not e.get("is_recovery")]
+        fail_types = " -> ".join(dict.fromkeys(
+            _humanize(e.get("normalized_subtype", e.get("subtype", "?"))) for e in failures[:3]
+        ))
+        title = f"Incident {iid} — {fail_types}"
+
+        lines += ["---", "", f"### {title}", ""]
+
+        # 4.x.1 Overview
+        lines += [
+            f"#### 4.{idx}.1  Incident Overview",
+            "",
+            "| Field | Value |",
+            "|---|---|",
+            f"| **Incident ID** | {iid} |",
+            f"| **Status** | {status} |",
+            f"| **Start Time** | {start} |",
+            f"| **End Time** | {end} |",
+            f"| **Duration** | {duration}s |",
+            f"| **Severity** | {root_sev} |",
+            f"| **Affected Device** | {root_device} |",
+            f"| **Affected Interface** | {root_iface} |",
+            f"| **Causal Confidence** | {conf_pct} |",
+            "",
+        ]
+
+        # 4.x.2 Timeline
+        lines += [f"#### 4.{idx}.2  Timeline Reconstruction", "", "```"]
+        sorted_events = sorted(events, key=lambda e: e.get("corrected_time") or e.get("event_time") or "")
+        prev = None
+        for e in sorted_events:
+            t    = _fmt_time(e.get("corrected_time") or e.get("event_time") or "")
+            sub  = _humanize(e.get("normalized_subtype", e.get("subtype", "?")))
+            sev  = e.get("severity", "info").upper()
+            msg  = e.get("message", "")
+            flag = "  <- RECOVERY" if e.get("is_recovery") else ""
+            if prev:
+                lines.append("        |")
+                lines.append("        v")
+                lines.append("")
+            lines.append(f"{t}")
+            lines.append(f"[{sev}]  {sub}{flag}")
+            lines.append(f"       {msg}")
+            prev = t
+        lines += ["```", ""]
+
+        # 4.x.3 Root Cause
+        lines += [
+            f"#### 4.{idx}.3  Root Cause Analysis",
+            "",
+            "| Field | Detail |",
+            "|---|---|",
+            f"| **Root Cause** | {_humanize(root_subtype)} |",
+            f"| **Root Score** | {root_score} |",
+            f"| **Root Trigger Event** | {root_msg} |",
+            f"| **Device** | {root_device} |",
+            f"| **Causal Confidence** | {conf_pct} |",
+            f"| **Causal Links Found** | {len(causal_links)} |",
+            "",
+        ]
+
+        # 4.x.4 Cause-Effect Chain
+        best_seq = max(seq_list, key=lambda s: s.get("total_confidence", 0), default=None)
+        if best_seq:
+            lines += [f"#### 4.{idx}.4  Cause-and-Effect Chain", "", "```"]
+            steps = best_seq.get("steps", [])
+            for i_step, step in enumerate(steps):
+                sub      = _humanize(step.get("subtype", "?"))
+                role     = step.get("role", "")
+                lag      = step.get("lag_from_previous")
+                lag_str  = f"  (+{lag:.0f}s)" if lag else ""
+                role_tag = "  <-- ROOT CAUSE" if role == "root_cause" else ("  <-- RECOVERY" if "recovery" in role else "")
+                lines.append(f"{sub}{role_tag}{lag_str}")
+                if i_step < len(steps) - 1:
+                    lines.append("        |")
+                    lines.append("        v")
+            lines += ["```", ""]
+
+        # 4.x.5 Evidence
+        lines += [
+            f"#### 4.{idx}.5  Supporting Evidence",
+            "",
+            "| Time (UTC) | UID | Interface | Severity | Event Type | Log Message |",
+            "|---|---|---|---|---|---|",
+        ]
+        for e in sorted_events:
+            t    = _fmt_time(e.get("corrected_time") or e.get("event_time") or "")[:19]
+            uid  = e.get("event_uid", "—")
+            ifc  = e.get("interface_id") or "—"
+            sev  = e.get("severity", "info").capitalize()
+            sub  = _humanize(e.get("normalized_subtype", e.get("subtype", "?")))
+            msg  = e.get("message", "")
+            lines.append(f"| {t} | {uid} | {ifc} | {sev} | {sub} | {msg} |")
+        lines.append("")
+
+        # 4.x.6 Impact
+        iface_set = sorted({e.get("interface_id") for e in events if e.get("interface_id")})
+        iface_str = ", ".join(iface_set) if iface_set else "—"
+        lines += [
+            f"#### 4.{idx}.6  Impact Assessment",
+            "",
+            "| Field | Detail |",
+            "|---|---|",
+            f"| **Device Affected** | {root_device} |",
+            f"| **Interfaces Affected** | {iface_str} |",
+            f"| **Events in Chain** | {len(events)} |",
+            f"| **Duration** | {duration}s |",
+            f"| **Current Status** | {status} |",
+            "",
+        ]
+
+        # 4.x.7 Recommendations
+        recs = _recommendations_for(root_subtype, root_device, iface_str)
+        lines += [f"#### 4.{idx}.7  Recommendations", "", "| # | Action | Rationale |", "|---|---|---|"]
+        for i_r, (action, rationale) in enumerate(recs, 1):
+            lines.append(f"| {i_r} | **{action}** | {rationale} |")
+        lines.append("")
+
+    # 5. STANDALONE ALERTS
+    lines += [
+        "---",
+        "",
+        "## 5. Standalone Alerts",
+        "",
+        "> These events have **no proven causal chain**. Each is independent — not part of a cascading incident.",
+        "",
+    ]
+    if not alert_incidents:
+        lines += ["> No standalone alerts detected.", ""]
+    else:
+        lines += [
+            "| Incident ID | Alert Type | Severity | Time (UTC) | Message | Action Required |",
+            "|---|---|---|---|---|---|",
+        ]
         for inc in alert_incidents:
-            for e in inc.get('events', []):
-                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
-                lines.append(f"- {e.get('device', 'unknown')}: {sub} ({e.get('severity', 'info')}) - {e.get('message', '')}")
+            a_iid = inc.get("incident_id", "—")
+            for e in inc.get("events", []):
+                sub    = _humanize(e.get("normalized_subtype", e.get("subtype", "?")))
+                sev    = e.get("severity", "info").capitalize()
+                t      = _fmt_time(e.get("corrected_time") or e.get("event_time") or "")[:19]
+                msg    = e.get("message", "")
+                action = _alert_action(e.get("normalized_subtype", e.get("subtype", "")))
+                lines.append(f"| {a_iid} | {sub} | {sev} | {t} | {msg} | {action} |")
         lines.append("")
 
-    noise_incidents = causal_summary.get("noise_incidents", [])
-    if noise_incidents:
-        lines.extend([
-            "## Routine & Unlinked Noise",
-            "The following events were classified as non-actionable noise or routine informational activity:",
-            ""
-        ])
-        for inc in noise_incidents:
-            for e in inc.get('events', []):
-                sub = e.get('normalized_subtype', e.get('subtype', 'unknown'))
-                lines.append(f"- {e.get('device', 'unknown')}: {sub} ({e.get('severity', 'info')}) - {e.get('message', '')}")
-        lines.append("")
-        
-    lines.extend([
-        "## Confidence and Limitations",
-        "- Causality is inferred from temporal and contextual heuristics, not strict proof.",
-        "- Confidence increases when links have strong timing, device/interface alignment, and severity progression.",
+    # 6. OPERATIONAL WORKFLOWS
+    lines += [
+        "---",
         "",
-        "## Recommendations",
-        "- Prioritize remediation on root-linked interfaces/devices before downstream symptoms.",
-        "- Add monitoring alerts for repeated trigger subtypes and interface recurrence.",
-        "- Validate inferred root causes with device-level diagnostics and config audit.",
-    ])
+        "## 6. Operational Workflows",
+        "",
+        "> These are **normal, successful operations** — not incidents.",
+        "",
+    ]
+    if not workflow_incidents:
+        lines += ["> No operational workflows detected.", ""]
+    else:
+        lines += [
+            "| Workflow ID | Event Type | Time (UTC) | Status | Action Required |",
+            "|---|---|---|---|---|",
+        ]
+        for inc in workflow_incidents:
+            w_iid  = inc.get("incident_id", "N/A")
+            status = inc.get("status", "Successful")
+            for e in inc.get("events", []):
+                sub = _humanize(e.get("normalized_subtype", e.get("subtype", "?")))
+                t   = _fmt_time(e.get("corrected_time") or e.get("event_time") or "")[:19]
+                lines.append(f"| {w_iid} | {sub} | {t} | {status} | No |")
+        lines.append("")
+
+    # 7. ROUTINE INFORMATIONAL EVENTS
+    lines += [
+        "---",
+        "",
+        "## 7. Routine Informational Events",
+        "",
+        "> These events are **not actionable**. Included for completeness only.",
+        "",
+    ]
+    if not noise_incidents:
+        lines += ["> No routine events detected.", ""]
+    else:
+        lines += [
+            "| Event Type | Time (UTC) | Device | Notes |",
+            "|---|---|---|---|",
+        ]
+        for inc in noise_incidents:
+            for e in inc.get("events", []):
+                sub    = _humanize(e.get("normalized_subtype", e.get("subtype", "?")))
+                t      = _fmt_time(e.get("corrected_time") or e.get("event_time") or "")[:19]
+                dev    = e.get("device", "—")
+                reason = _routine_reason(e.get("normalized_subtype", e.get("subtype", "")))
+                lines.append(f"| {sub} | {t} | {dev} | {reason} |")
+        lines.append("")
+
+    # 8. RECOMMENDATIONS
+    lines += [
+        "---",
+        "",
+        "## 8. Recommendations",
+        "",
+        "| Priority | Action | Source |",
+        "|---|---|---|",
+    ]
+    all_recs = []
+    for inc in causal_incidents:
+        root     = inc.get("root_cause") or {}
+        root_sub = root.get("normalized_subtype") or root.get("subtype", "unknown")
+        iid      = inc.get("incident_id", "N/A")
+        for action, _ in _recommendations_for(root_sub, root.get("device", ""), ""):
+            sev  = root.get("severity", "info").lower()
+            prio = "Critical" if sev == "critical" else ("High" if sev in ("error", "warning") else "Medium")
+            all_recs.append((prio, action, iid))
+    for inc in alert_incidents:
+        for e in inc.get("events", []):
+            sub    = e.get("normalized_subtype", e.get("subtype", ""))
+            sev    = e.get("severity", "info").lower()
+            action = _alert_action(sub)
+            prio   = "Critical" if sev == "critical" else "High"
+            a_iid  = inc.get("incident_id", "Alert")
+            all_recs.append((prio, action, a_iid))
+    all_recs.append(("Low", "Enrich device vendor metadata for improved classification accuracy", "All"))
+    all_recs.append(("Low", "Configure alerting for high root-score event subtypes", "All"))
+    for prio, action, source in all_recs:
+        lines.append(f"| {prio} | {action} | {source} |")
+    lines.append("")
+
+    # 9. INVESTIGATION CONCLUSION
+    lines += ["---", "", "## 9. Investigation Conclusion", ""]
+    if causal_incidents:
+        lines.append(f"**Reconstructed Incidents ({n_reconstructed}):**")
+        for inc in causal_incidents:
+            iid    = inc.get("incident_id", "N/A")
+            root   = inc.get("root_cause") or {}
+            rtype  = _humanize(root.get("normalized_subtype") or root.get("subtype", "unknown"))
+            status = inc.get("status", "Unknown")
+            seq    = inc.get("causal_sequences", [])
+            conf   = f"{int(max((s.get('total_confidence', 0) for s in seq), default=0) * 100)}%" if seq else "N/A"
+            lines.append(f"- **{iid}** — Root Cause: {rtype} | Status: {status} | Confidence: {conf}")
+        lines.append("")
+    if alert_incidents:
+        a_ids = ", ".join(i.get("incident_id", "?") for i in alert_incidents)
+        lines.append(f"**Standalone Alerts ({n_alerts}):** {a_ids} — Independent events. See Section 5.")
+        lines.append("")
+    health = "Poor — active incidents detected" if active else ("Fair — incidents recovering" if recovering else "Stable")
+    lines += [
+        f"**Overall Network Health:** {health}",
+        "",
+        "**Remaining Uncertainties:**",
+        "- Causality is inferred from temporal and contextual heuristics — not guaranteed proof.",
+        "- Events with vendor = unknown may have reduced classification accuracy.",
+        "",
+    ]
+
+    # 10. APPENDIX
+    inc_ids    = [i.get("incident_id", "N/A") for i in causal_incidents]
+    alert_iids = [i.get("incident_id", "?") for i in alert_incidents]
+    lines += [
+        "---",
+        "",
+        "## 10. Appendix",
+        "",
+        "| Field | Value |",
+        "|---|---|",
+        f"| **Reconstructed Incident IDs** | {', '.join(inc_ids) if inc_ids else 'None'} |",
+        f"| **Standalone Alert IDs** | {', '.join(alert_iids) if alert_iids else 'None'} |",
+        f"| **Total Causal Links** | {total_links} |",
+        f"| **Report Generated** | {now_str} |",
+        "| **Log Reference Files** | normalized_events.json, timeline_output.json, causal_inference_output.json |",
+        "| **Causality Method** | Temporal + contextual heuristics (DAG-graph-partitioned) |",
+        "",
+    ]
 
     output_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+
+# ── Helper functions for report generation ─────────────────────────────────
+
+def _recommendations_for(root_subtype: str, device: str, iface: str) -> List[tuple]:
+    """Return (action, rationale) pairs based on the root cause subtype."""
+    s = root_subtype.lower()
+    if "power_failure" in s or "psu" in s:
+        return [
+            ("Replace failed power supply immediately", "No power redundancy — one PSU left"),
+            ("Monitor thermal sensors", "Fan overspeed may indicate thermal stress"),
+            ("Schedule emergency maintenance", "On-site hardware replacement required"),
+        ]
+    elif "stp" in s or "topology_change" in s:
+        return [
+            ("Investigate STP root bridge stability", "Unexpected STP transitions risk L2/L3 disruption"),
+            ("Enable STP BPDU Guard on access ports", "Prevents rogue devices triggering STP reconvergence"),
+            ("Tune OSPF hello/dead intervals", "Reduces sensitivity to brief L2 flaps"),
+        ]
+    elif "ospf" in s or "bgp" in s:
+        return [
+            ("Restore routing adjacency", f"Verify physical connectivity and protocol timers on {device}"),
+            ("Check interface stability", f"Interface {iface} may be causing routing instability"),
+        ]
+    elif "interface_down" in s or "link_down" in s:
+        return [
+            ("Inspect physical cable and transceiver", f"Port {iface} went down — check hardware"),
+            ("Enable interface monitoring alerts", "Alert on port state changes to catch issues early"),
+        ]
+    elif "crc_error" in s:
+        return [
+            ("Replace cable or transceiver", "CRC errors indicate signal integrity problems"),
+            ("Check port error counters", "Persistent CRC errors may require port replacement"),
+        ]
+    elif "ssh_brute" in s or "bruteforce" in s:
+        return [
+            ("Block source IP at perimeter firewall", "External IP targeting management plane"),
+            ("Enable SSH rate limiting", "Limit failed login attempts per source"),
+            ("Review SSH access control list", "Restrict SSH to trusted management IPs only"),
+        ]
+    elif "auth_failure" in s or "dot1x" in s:
+        return [
+            ("Review NAC/802.1X policy", "Authentication failure may indicate unauthorized device"),
+            ("Audit recent login attempts", "Check if failure is a misconfigured client or attack"),
+        ]
+    elif "fan_failure" in s:
+        return [
+            ("Check cooling system", "Fan failure may lead to thermal shutdown"),
+            ("Verify ambient temperature", "High ambient temp accelerates hardware degradation"),
+        ]
+    else:
+        return [
+            ("Investigate root cause device and interface", f"device={device}, interface={iface}"),
+            ("Add monitoring alerts for this event type", f"subtype={root_subtype}"),
+        ]
+
+
+def _alert_action(subtype: str) -> str:
+    """Return a short recommended action string for a standalone alert."""
+    s = subtype.lower()
+    if "ssh" in s and ("brute" in s or "login" in s):
+        return "Block source IP at firewall immediately"
+    elif "auth_failure" in s or "dot1x" in s:
+        return "Review NAC policy and audit login attempts"
+    elif "crc" in s:
+        return "Inspect cable and transceiver"
+    elif "interface_down" in s:
+        return "Check physical connectivity"
+    elif "transceiver" in s:
+        return "Verify transceiver compatibility"
+    elif "config_change" in s:
+        return "Verify change matches approved change ticket"
+    else:
+        return "Review and investigate"
+
+
+def _routine_reason(subtype: str) -> str:
+    """Return a short explanation of why this event is routine."""
+    s = subtype.lower()
+    if "ntp" in s:
+        return "Expected periodic time synchronization"
+    elif "snmp" in s:
+        return "Normal SNMP polling session teardown"
+    elif "lldp" in s:
+        return "Expected neighbor discovery"
+    elif "interface_up" in s:
+        return "Standard port coming online"
+    elif "vlan" in s:
+        return "Normal VLAN provisioning activity"
+    elif "mac_auth" in s or "dot1x_logout" in s:
+        return "Expected client authentication lifecycle"
+    elif "bgp_established" in s or "bgp_session" in s:
+        return "Routing session recovery — expected after flap"
+    else:
+        return "Classified as informational by causal engine"
 
 
 def run_causal_from_timeline(timeline_incidents: List[Dict]) -> Dict:
