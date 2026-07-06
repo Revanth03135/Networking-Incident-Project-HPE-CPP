@@ -1,35 +1,59 @@
 # Network Incident Investigation Report
 
-Generated: 2026-06-29T14:12:17Z
+Generated: 2026-07-02T16:12:01Z
 
 ## Executive Summary
-- Total incidents reconstructed: 0
-- Total events analyzed: 13
-- Total causal links inferred: 0
-- Affected devices: N/A
+- Total incidents reconstructed: 1
+- Total events analyzed: 8
+- Total causal links inferred: 3
+- Affected devices: Access-SW1
 
 ## Probable Initiating Triggers
-- No high-confidence root trigger was detected
+- Incident INC-0006 -> Root Cause: crc_errors (device=Access-SW1, score=188.6)
 
 ## Incident Overview
-- No actionable incidents detected.
+- INC-0006: events=3, duration=6.021s, primary_issue=crc_errors
 
 ## Detailed Incident Chains
+### INC-0006
+**Failure Sequence:**
+- crc_errors (warning)
+- interface (warning)
+- lacp (info)
+
+*Status: Active*
+*Duration: 6.021s*
+
 ## Operational Workflows Detected
 
-### Workflow: WORKFLOW-0001
+### Workflow: WORKFLOW-0002
 - **Status:** Successful
 - **Incident Detected:** No
 - **Sequence Summary:**
-  - interface_down (info) x2
-  - ospf_neighbor_down (info)
-  - ospf_interface_down (info) x2
-  - tunnel_nexthop_delete (info)
-  - interface_down (info)
-  - tunnel_nexthop_delete (info)
-  - vtep_deleted (info)
-  - tunnel_activating (info) x2
-  - vni_delete (info) x2
+  - mac_auth (info)
+
+### Workflow: WORKFLOW-0003
+- **Status:** Successful
+- **Incident Detected:** No
+- **Sequence Summary:**
+  - system (info)
+
+### Workflow: WORKFLOW-0004
+- **Status:** Successful
+- **Incident Detected:** No
+- **Sequence Summary:**
+  - system (info)
+
+### Workflow: WORKFLOW-0005
+- **Status:** Successful
+- **Incident Detected:** No
+- **Sequence Summary:**
+  - system (info)
+
+## Routine & Unlinked Noise
+The following events were classified as non-actionable noise or routine informational activity:
+
+- 192.168.1.104: lldp (info) - LLDP neighbor 00:25:B3:11:22:33 discovered on port 1/1/10
 
 ## Confidence and Limitations
 - Causality is inferred from temporal and contextual heuristics, not strict proof.

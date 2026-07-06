@@ -928,6 +928,32 @@ class LogProcessor:
                         detected_type = _TYPE_MAP.get(st, "log")
                         break
 
+            # --- SMART FALLBACK: If keywords failed, try LLM as backup ---
+            if detected_subtype == "raw" and detected_type == "log":
+                print(f"[WARN] No keyword match found: {core_message[:80]}... → Attempting LLM fallback")
+                try:
+                    # Use Stage 2 semantic analyzer as fallback
+                    llm_stage1_entry = {
+                        "raw_log": raw_log,
+                        "core_message": core_message,
+                        "timestamp": timestamp,
+                        "hostname": stage1_entry.get("hostname"),
+                        "ip": stage1_entry.get("ip"),
+                        "vendor": stage1_entry.get("vendor"),
+                        "os": stage1_entry.get("os")
+                    }
+                    llm_stage2_result = self.process_stage2_single_log(llm_stage1_entry)
+                    
+                    if llm_stage2_result and "error" not in llm_stage2_result:
+                        detected_type = llm_stage2_result.get("type", "log")
+                        detected_subtype = llm_stage2_result.get("subtype", "raw")
+                        severity = llm_stage2_result.get("severity", severity)
+                        print(f"[OK] LLM fallback succeeded: type={detected_type}, subtype={detected_subtype}")
+                        self.stats["fallback_to_llm"] = self.stats.get("fallback_to_llm", 0) + 1
+                    else:
+                        print(f"[WARN] LLM fallback analysis failed, keeping 'raw' classification")
+                except Exception as e:
+                    print(f"[WARN] LLM fallback exception: {e} → keeping 'raw' classification")
             # --- Extract interface/port ---
             interface_id = None
             vlan = None
@@ -977,7 +1003,8 @@ class LogProcessor:
                 }
             }
 
-            print(f"[OK] Produced record in no_llm mode: type={detected_type}, subtype={detected_subtype}, severity={severity}")
+            classification_mode = "keyword" if detected_subtype != "raw" else ("llm_fallback" if "fallback_to_llm" in self.stats else "raw")
+            print(f"[OK] no_llm mode ({classification_mode}): type={detected_type}, subtype={detected_subtype}, severity={severity}")
             return output_record
             
         print("-> STAGE 1.5: Generating template hash...")
@@ -1154,6 +1181,7 @@ class LogProcessor:
         print(f"{'='*70}")
         print(f"Total logs processed:        {self.stats['total']}")
         print(f"Template matched (fast):     {self.stats['template_matched']}")
+        print(f"LLM fallback (hybrid mode):  {self.stats.get('fallback_to_llm', 0)}")
         print(f"Requires LLM analysis:       {self.stats['requires_llm']}")
         print(f"Errors:                      {self.stats['errors']}")
         print(f"\nTemplate registry size:      {len(self.template_registry)}")
@@ -1165,6 +1193,14 @@ class LogProcessor:
             print("NOTE: New templates were generated from LLM analysis.")
             print("To explicitly update/rebuild the template registry:")
             print("  python template2.py")
+            print(f"{'-'*70}")
+        
+        # Show hybrid mode note
+        if self.stats.get('fallback_to_llm', 0) > 0:
+            print(f"\n{'-'*70}")
+            print(f"HYBRID MODE: {self.stats.get('fallback_to_llm', 0)} unmatched logs used LLM fallback")
+            print("This improves classification accuracy for unknown patterns while")
+            print("maintaining fast keyword-based processing for common events.")
             print(f"{'-'*70}")
         
         print(f"{'='*70}\n")
