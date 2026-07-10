@@ -490,7 +490,7 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
             "",
         ]
 
-    # 2. INVESTIGATION SCOPE
+    # 2. INVESTIGATION SCOPE — compute time range
     all_times = []
     for inc in timeline_incidents:
         if inc.get("start_time"): all_times.append(inc["start_time"])
@@ -498,27 +498,23 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
     t_start = _fmt_time(min(all_times)) if all_times else "N/A"
     t_end   = _fmt_time(max(all_times)) if all_times else "N/A"
 
-    cat_counts: dict = {}
-    for inc in timeline_incidents:
-        for e in inc.get("events", []):
-            cat = e.get("normalized_domain") or e.get("type", "unknown")
-            cat_counts[cat] = cat_counts.get(cat, 0) + 1
-    cat_str = " | ".join(f"{k.replace('_', ' ').title()} ({v})" for k, v in sorted(cat_counts.items()))
+    scope_sentence = (
+        f"This investigation covers {total_events} log events collected from {len(devices)} device(s) "
+        f"({device_str}) between {t_start} and {t_end}. "
+        f"A total of {n_reconstructed} incident(s) were reconstructed with full RCA, alongside "
+        f"{n_alerts} standalone alert(s), {n_workflows} operational workflow(s), and "
+        f"{n_routine} routine informational event(s) — overall status: {status_str.split(' —')[0]}."
+    )
 
     lines += [
         "---",
         "",
         "## 2. Investigation Scope",
         "",
-        "| Field | Detail |",
-        "|---|---|",
-        f"| **Device(s)** | {device_str} |",
-        f"| **Time Window** | {t_start} → {t_end} |",
-        f"| **Total Log Events** | {total_events} |",
-        f"| **Event Categories** | {cat_str or 'N/A'} |",
-        f"| **Causal Links Inferred** | {total_links} |",
+        scope_sentence,
         "",
     ]
+
 
     # 3. INCIDENT CLASSIFICATION SUMMARY
     inc_ids_str   = ", ".join(i.get("incident_id", "?") for i in causal_incidents)   or "None"
@@ -564,7 +560,7 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
     else:
         lines += [
             f"> Only **{n_reconstructed}** incident(s) below have a proven causal chain.",
-            "> Each section: Incident Overview · Timeline · Root Cause · Cause-Effect Chain · Evidence · Impact · Recommendations",
+            "> Each section: Incident Overview (incl. impact) · Timeline · Root Cause · Cause-Effect Chain · Supporting Evidence · Recommendations",
             "",
         ]
 
@@ -597,7 +593,9 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
 
         lines += ["---", "", f"### {title}", ""]
 
-        # 4.x.1 Overview
+        # 4.x.1 Overview (merged with Impact Assessment — no duplication)
+        iface_set = sorted({e.get("interface_id") for e in events if e.get("interface_id")})
+        iface_str = ", ".join(iface_set) if iface_set else "—"
         lines += [
             f"#### 4.{idx}.1  Incident Overview",
             "",
@@ -610,7 +608,8 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
             f"| **Duration** | {duration}s |",
             f"| **Severity** | {root_sev} |",
             f"| **Affected Device** | {root_device} |",
-            f"| **Affected Interface** | {root_iface} |",
+            f"| **Affected Interface(s)** | {iface_str} |",
+            f"| **Events in Chain** | {len(events)} |",
             f"| **Causal Confidence** | {conf_pct} |",
             "",
         ]
@@ -642,7 +641,6 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
             "| Field | Detail |",
             "|---|---|",
             f"| **Root Cause** | {_humanize(root_subtype)} |",
-            f"| **Root Score** | {root_score} |",
             f"| **Root Trigger Event** | {root_msg} |",
             f"| **Device** | {root_device} |",
             f"| **Causal Confidence** | {conf_pct} |",
@@ -684,25 +682,9 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
             lines.append(f"| {t} | {uid} | {ifc} | {sev} | {sub} | {msg} |")
         lines.append("")
 
-        # 4.x.6 Impact
-        iface_set = sorted({e.get("interface_id") for e in events if e.get("interface_id")})
-        iface_str = ", ".join(iface_set) if iface_set else "—"
-        lines += [
-            f"#### 4.{idx}.6  Impact Assessment",
-            "",
-            "| Field | Detail |",
-            "|---|---|",
-            f"| **Device Affected** | {root_device} |",
-            f"| **Interfaces Affected** | {iface_str} |",
-            f"| **Events in Chain** | {len(events)} |",
-            f"| **Duration** | {duration}s |",
-            f"| **Current Status** | {status} |",
-            "",
-        ]
-
-        # 4.x.7 Recommendations
+        # 4.x.6 Recommendations
         recs = _recommendations_for(root_subtype, root_device, iface_str)
-        lines += [f"#### 4.{idx}.7  Recommendations", "", "| # | Action | Rationale |", "|---|---|---|"]
+        lines += [f"#### 4.{idx}.6  Recommendations", "", "| # | Action | Rationale |", "|---|---|---|"]
         for i_r, (action, rationale) in enumerate(recs, 1):
             lines.append(f"| {i_r} | **{action}** | {rationale} |")
         lines.append("")
