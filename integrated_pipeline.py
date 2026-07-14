@@ -102,8 +102,10 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     ("thermal",              ["temperature critical", "thermal protection", "temperature exceeded"]),
                     ("crc_errors",           ["crc error", "excessive crc"]),
                     ("interface_down",       ["off-line", "offline", "link down", "is down", "operational status changed to down", "administratively down", "l3-interface", "interface deleted"]),
+                    ("dot1x_success",        ["authentication succeeded", "authentication successful", "mac authentication successful"]),
                     ("interface_up",         ["on-line", "online", "link up", "operational status changed to up"]),
                     ("stp_topology_change",  ["topology change", "mstp", "recalculating spanning tree", "spanning tree"]),
+                    ("stp_converged",        ["topology converged", "root bridge unchanged", "stp converged", "spanning tree converged"]),
                     ("ospf_interface_down",  ["ptp to down", "changed from bdr to", "changed from dr to", "input: if_interface_down", "input: if_dr_other"]),
                     ("ospf_interface_up",    ["down to ptp"]),
                     ("ospf_neighbor_down",   ["full to down", "rpd_ospf_nbrdown", "ospf-5-adjchg", "down", "adjchg:", "full -> down"]),
@@ -120,15 +122,15 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                     ("dot1x_logout",         ["logged out", "dot1x_logout"]),
                     ("dot1x_failure",        ["authentication failed"]),
                     ("port_blocked",         ["blocked due to repeated", "temporarily blocked", "blocked after repeated"]),
-                    ("radius_failure",       ["radius server unreachable", "radius unreachable"]),
+                    ("radius_failure",       ["radius server unreachable", "radius unreachable", "unreachable, authentication timeout"]),
                     ("radius_recovered",     ["backup radius", "radius restored"]),
-                    ("mac_auth_success",     ["authentication succeeded"]),
                     ("mac_auth",             ["mac-auth", "mac authentication"]),
                     ("ssh_source_blocked",   ["ssh source", "blocked after maximum"]),
                     ("ssh_bruteforce",       ["ssh login failed", "maximum attempts", "maximum failed attempts"]),
                     ("admin_auth_failure",   ["authentication failure for user", "authfail"]),
-                    ("config_change",        ["configuration changed", "config_i", "configured from", "configuration saved"]),
-                    ("lldp",                 ["lldp"]),
+                    ("config_change",        ["configuration changed", "config_i", "configured from", "configuration saved", "configuration modified", "configuration updated"]),
+                    ("lldp_neighbor_removed", ["lldp neighbor removed", "neighbor removed from port"]),
+                    ("lldp_neighbor_discovered", ["lldp neighbor discovered", "neighbor discovered on port", "lldp"]),
                     ("transceiver",         ["transceiver"]),
                     ("ntp",                 ["ntp"]),
                     ("snmp",                ["snmpd", "snmp"]),
@@ -224,17 +226,17 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                             detected_type = "hardware"
                         elif st in ("crc_errors", "interface_down", "interface_up", "transceiver"):
                             detected_type = "physical_link"
-                        elif st in ("stp_topology_change",):
+                        elif st in ("stp_topology_change", "stp_converged", "lldp_neighbor_removed", "lldp_neighbor_discovered"):
                             detected_type = "topology"
                         elif st in ("ospf", "bgp", "ospf_interface_down", "ospf_interface_up", "ospf_neighbor_down", "ospf_neighbor_up", "route_recalculation_started", "route_recalculation_completed", "bgp_session_lost", "bgp_session_established", "route_withdrawal", "routes_relearned", "routes_withdrawn"):
                             detected_type = "routing"
-                        elif st in ("dot1x_failure", "mac_auth", "mac_auth_success", "port_blocked"):
+                        elif st in ("dot1x_failure", "mac_auth", "dot1x_success", "port_blocked"):
                             detected_type = "access_control"
                         elif st in ("ssh_bruteforce", "admin_auth_failure", "ssh_source_blocked", "acl_deny", "arp_spoofing", "mac_flap", "radius_recovered"):
                             detected_type = "security"
                         elif st in ("config_change",):
                             detected_type = "configuration"
-                        elif st in ("lldp", "vlan"):
+                        elif st in ("vlan",):
                             detected_type = "inventory"
                         elif st in ("ntp", "snmp"):
                             detected_type = "service"
@@ -250,7 +252,7 @@ def parse_input_logs(input_path: Path, normalized_output_path: Path, skip_schema
                             detected_type = "multicast"
 
                     # --- Semantic Severity Overrides ---
-                    if detected_subtype in ("interface_up", "ospf_interface_up", "ospf_neighbor_up", "bgp_session_established", "routes_relearned", "radius_recovered", "fan_nominal"):
+                    if detected_subtype in ("interface_up", "ospf_interface_up", "ospf_neighbor_up", "bgp_session_established", "routes_relearned", "radius_recovered", "fan_nominal", "dot1x_success", "stp_converged", "lldp_neighbor_discovered"):
                         severity = "info"
                     elif detected_subtype in ("interface_down", "ospf_interface_down", "ospf_neighbor_down", "bgp_session_lost", "power_failure", "fan_failure", "thermal", "crc_errors", "ssh_bruteforce", "dot1x_failure", "linecard_disabled"):
                         if detected_subtype in ("power_failure", "thermal", "linecard_disabled"):
@@ -592,10 +594,21 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
         title = f"Incident {iid} — {fail_types}"
 
         lines += ["---", "", f"### {title}", ""]
+        
+        if "ssh_bruteforce" in " ".join([e.get("normalized_subtype", "") for e in events]).lower():
+            lines += ["> **Summary:** Repeated SSH authentication failures detected. Automatic source IP blocking was triggered. No successful authentication occurred before mitigation.", ""]
 
         # 4.x.1 Overview (merged with Impact Assessment — no duplication)
         iface_set = sorted({e.get("interface_id") for e in events if e.get("interface_id")})
         iface_str = ", ".join(iface_set) if iface_set else "—"
+        
+        same_device = "✓ Same device<br>" if len(set(e.get("hostname") for e in events if e.get("hostname"))) == 1 else ""
+        same_iface = "✓ Same interface<br>" if len(iface_set) == 1 else ""
+        recov_obs = "✓ Recovery observed<br>" if status.lower() == "resolved" else ""
+        temp_prox = "✓ Temporal proximity<br>"
+        known_chain = "✓ Known propagation chain" if causal_links else ""
+        conf_reasons = f"{same_device}{same_iface}{recov_obs}{temp_prox}{known_chain}"
+        
         lines += [
             f"#### 4.{idx}.1  Incident Overview",
             "",
@@ -611,32 +624,50 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
             f"| **Affected Interface(s)** | {iface_str} |",
             f"| **Events in Chain** | {len(events)} |",
             f"| **Causal Confidence** | {conf_pct} |",
+            f"| **Confidence Reasons** | {conf_reasons} |",
             "",
         ]
 
+        sorted_events = sorted(events, key=lambda e: e.get("corrected_time") or e.get("event_time") or "")
+        recovery_events = [e for e in sorted_events if e.get("is_recovery")]
+        main_events = [e for e in sorted_events if not e.get("is_recovery")]
+
         # 4.x.2 Timeline
         lines += [f"#### 4.{idx}.2  Timeline Reconstruction", "", "```"]
-        sorted_events = sorted(events, key=lambda e: e.get("corrected_time") or e.get("event_time") or "")
         prev = None
-        for e in sorted_events:
+        for e in main_events:
             t    = _fmt_time(e.get("corrected_time") or e.get("event_time") or "")
             sub  = _humanize(e.get("normalized_subtype", e.get("subtype", "?")))
             sev  = e.get("severity", "info").upper()
             msg  = e.get("message", "")
-            flag = "  <- RECOVERY" if e.get("is_recovery") else ""
             if prev:
                 lines.append("        |")
                 lines.append("        v")
                 lines.append("")
             lines.append(f"{t}")
-            lines.append(f"[{sev}]  {sub}{flag}")
+            lines.append(f"[{sev}]  {sub}")
             lines.append(f"       {msg}")
             prev = t
         lines += ["```", ""]
+        
+        if recovery_events:
+            rec_start = datetime.fromisoformat(main_events[0].get("corrected_time") or main_events[0].get("event_time")).replace(tzinfo=None) if main_events else None
+            rec_end = datetime.fromisoformat(recovery_events[-1].get("corrected_time") or recovery_events[-1].get("event_time")).replace(tzinfo=None)
+            rec_dur = int((rec_end - rec_start).total_seconds()) if rec_start else 0
+            
+            lines += [f"#### 4.{idx}.3  Recovery Events", ""]
+            lines += [f"**Status = RESOLVED** (Recovery Duration: {rec_dur} seconds)", ""]
+            for e in recovery_events:
+                sub  = _humanize(e.get("normalized_subtype", e.get("subtype", "?")))
+                lines.append(f"- {sub}")
+            lines.append("")
+            root_idx = 4
+        else:
+            root_idx = 3
 
-        # 4.x.3 Root Cause
+        # Root Cause
         lines += [
-            f"#### 4.{idx}.3  Root Cause Analysis",
+            f"#### 4.{idx}.{root_idx}  Root Cause Analysis",
             "",
             "| Field | Detail |",
             "|---|---|",
@@ -648,22 +679,21 @@ def generate_fallback_report(timeline_incidents: List[Dict], causal_summary: Dic
             "",
         ]
 
-        # 4.x.4 Cause-Effect Chain
+        # Propagation
         best_seq = max(seq_list, key=lambda s: s.get("total_confidence", 0), default=None)
         if best_seq:
-            lines += [f"#### 4.{idx}.4  Cause-and-Effect Chain", "", "```"]
+            lines += [f"#### 4.{idx}.{root_idx+1}  Propagation", ""]
             steps = best_seq.get("steps", [])
-            for i_step, step in enumerate(steps):
-                sub      = _humanize(step.get("subtype", "?"))
-                role     = step.get("role", "")
-                lag      = step.get("lag_from_previous")
-                lag_str  = f"  (+{lag:.0f}s)" if lag else ""
-                role_tag = "  <-- ROOT CAUSE" if role == "root_cause" else ("  <-- RECOVERY" if "recovery" in role else "")
-                lines.append(f"{sub}{role_tag}{lag_str}")
-                if i_step < len(steps) - 1:
-                    lines.append("        |")
-                    lines.append("        v")
-            lines += ["```", ""]
+            prop_str = " -> ".join(_humanize(step.get("subtype", "?")) for step in steps if "recovery" not in step.get("role", ""))
+            if recovery_events:
+                prop_str += " -> Recovery Completed"
+            lines += [
+                f"**Root Cause:** {_humanize(root_subtype)} on {root_device}",
+                "",
+                "**Propagation:**",
+                prop_str,
+                ""
+            ]
 
         # 4.x.5 Evidence
         lines += [

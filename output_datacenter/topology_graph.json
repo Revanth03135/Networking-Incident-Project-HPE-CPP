@@ -1,0 +1,59 @@
+{
+  "nodes": [
+    "Core-9300-01",
+    "Access-6200-01",
+    "Dist-6300-02",
+    "Edge-6300-01",
+    "Access-6200-02"
+  ],
+  "edges": [
+    {
+      "source": "Core-9300-01",
+      "target": "Access-6200-01",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24"
+      ]
+    },
+    {
+      "source": "Core-9300-01",
+      "target": "Edge-6300-01",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24"
+      ]
+    },
+    {
+      "source": "Core-9300-01",
+      "target": "Access-6200-02",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24"
+      ]
+    },
+    {
+      "source": "Access-6200-01",
+      "target": "Edge-6300-01",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24"
+      ]
+    },
+    {
+      "source": "Access-6200-01",
+      "target": "Access-6200-02",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24"
+      ]
+    },
+    {
+      "source": "Edge-6300-01",
+      "target": "Access-6200-02",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24"
+      ]
+    }
+  ]
+}

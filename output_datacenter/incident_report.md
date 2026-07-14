@@ -11,19 +11,19 @@
 | **Logs Analyzed** | 48 |
 | **Reconstructed Incidents** | **4** — proven causal chain + RCA |
 | **Standalone Alerts** | 0 |
-| **Operational Workflows** | 4 |
-| **Routine Informational Events** | 5 |
+| **Operational Workflows** | 6 |
+| **Routine Informational Events** | 3 |
 | **Highest Severity Observed** | Critical |
 | **Overall Investigation Status** | Active — Unresolved incidents require immediate attention |
 
 > **4 incident(s)** have a proven causal chain and receive full Root Cause Analysis below.
-> The remaining 9 events are categorized as alerts (0), workflows (4), or routine (5) — none of these are incidents.
+> The remaining 9 events are categorized as alerts (0), workflows (6), or routine (3) — none of these are incidents.
 
 ---
 
 ## 2. Investigation Scope
 
-This investigation covers 48 log events collected from 4 device(s) (Access-6200-02, Core-9300-01, Dist-6300-02, Edge-6300-01) between 2026-07-14 08:00:01 UTC and 2026-07-14 08:09:25 UTC. A total of 4 incident(s) were reconstructed with full RCA, alongside 0 standalone alert(s), 4 operational workflow(s), and 5 routine informational event(s) — overall status: Active.
+This investigation covers 48 log events collected from 4 device(s) (Access-6200-02, Core-9300-01, Dist-6300-02, Edge-6300-01) between 2026-07-14 08:00:01 UTC and 2026-07-14 08:09:25 UTC. A total of 4 incident(s) were reconstructed with full RCA, alongside 0 standalone alert(s), 6 operational workflow(s), and 3 routine informational event(s) — overall status: Active.
 
 ---
 
@@ -34,8 +34,8 @@ This investigation covers 48 log events collected from 4 device(s) (Access-6200-
 | Logs Analyzed | 48 | All parsed log events |
 | **Reconstructed Incidents (RCA)** | **4** | INC-0003, INC-0005, INC-0007, INC-0008 |
 | Standalone Alerts | 0 | None |
-| Operational Workflows | 4 | WORKFLOW-0001, WORKFLOW-0002, WORKFLOW-0009, WORKFLOW-0010 |
-| Routine Informational Events | 5 | Dot1X Success, Lldp Neighbor Discovered, Interface Up, Vlan |
+| Operational Workflows | 6 | WORKFLOW-0001, WORKFLOW-0002, WORKFLOW-0004, WORKFLOW-0009, WORKFLOW-0010, WORKFLOW-0011 |
+| Routine Informational Events | 3 | Lldp, Interface Up, Vlan |
 
 > **How to read this table:** Only Reconstructed Incidents have a proven causal chain.
 > Standalone alerts, workflows, and routine events are **not incidents** — classified separately below.
@@ -65,7 +65,6 @@ This investigation covers 48 log events collected from 4 device(s) (Access-6200-
 | **Affected Interface(s)** | 1/1/1, 1/1/2, 1/1/3 |
 | **Events in Chain** | 12 |
 | **Causal Confidence** | 75% |
-| **Confidence Reasons** | ✓ Temporal proximity<br>✓ Known propagation chain |
 
 #### 4.1.2  Timeline Reconstruction
 
@@ -131,13 +130,13 @@ This investigation covers 48 log events collected from 4 device(s) (Access-6200-
         v
 
 2026-07-14 08:01:20 UTC
-[INFO]  Lldp Neighbor Removed
+[INFO]  Lldp
        LLDP neighbor removed from port 1/1/1
         |
         v
 
 2026-07-14 08:01:22 UTC
-[INFO]  Lldp Neighbor Removed
+[INFO]  Lldp
        LLDP neighbor removed from port 1/1/2
 ```
 
@@ -151,12 +150,29 @@ This investigation covers 48 log events collected from 4 device(s) (Access-6200-
 | **Causal Confidence** | 75% |
 | **Causal Links Found** | 32 |
 
-#### 4.1.4  Propagation
+#### 4.1.4  Cause-and-Effect Chain
 
-**Root Cause:** Power Failure on Core-9300-01
-
-**Propagation:**
-Power Failure -> Fan Failure -> Thermal -> Linecard Disabled -> Interface Down -> Ospf Neighbor Down -> Lldp Neighbor Removed
+```
+Power Failure  <-- ROOT CAUSE
+        |
+        v
+Fan Failure  (+2s)
+        |
+        v
+Thermal  (+2s)
+        |
+        v
+Linecard Disabled  (+4s)
+        |
+        v
+Interface Down  (+2s)
+        |
+        v
+Ospf Neighbor Down  (+4s)
+        |
+        v
+Lldp  (+6s)
+```
 
 #### 4.1.5  Supporting Evidence
 
@@ -172,8 +188,8 @@ Power Failure -> Fan Failure -> Thermal -> Linecard Disabled -> Interface Down -
 | 2026-07-14 08:01:12 | 11 | 1/1/3 | Info | Interface Down | Link down on interface 1/1/3 |
 | 2026-07-14 08:01:14 | 12 | 1/1/1 | Warning | Ospf Neighbor Down | OSPF neighbor 10.10.10.1 on interface 1/1/1 changed state from FULL to DOWN |
 | 2026-07-14 08:01:16 | 13 | — | Warning | Bgp Session Lost | BGP peer 172.16.0.1 session lost |
-| 2026-07-14 08:01:20 | 14 | 1/1/1 | Info | Lldp Neighbor Removed | LLDP neighbor removed from port 1/1/1 |
-| 2026-07-14 08:01:22 | 15 | 1/1/2 | Info | Lldp Neighbor Removed | LLDP neighbor removed from port 1/1/2 |
+| 2026-07-14 08:01:20 | 14 | 1/1/1 | Info | Lldp | LLDP neighbor removed from port 1/1/1 |
+| 2026-07-14 08:01:22 | 15 | 1/1/2 | Info | Lldp | LLDP neighbor removed from port 1/1/2 |
 
 #### 4.1.6  Recommendations
 
@@ -200,8 +216,7 @@ Power Failure -> Fan Failure -> Thermal -> Linecard Disabled -> Interface Down -
 | **Affected Device** | Dist-6300-02 |
 | **Affected Interface(s)** | 1/1/49 |
 | **Events in Chain** | 17 |
-| **Causal Confidence** | 69% |
-| **Confidence Reasons** | ✓ Same interface<br>✓ Recovery observed<br>✓ Temporal proximity<br>✓ Known propagation chain |
+| **Causal Confidence** | 64% |
 
 #### 4.2.2  Timeline Reconstruction
 
@@ -257,37 +272,92 @@ Power Failure -> Fan Failure -> Thermal -> Linecard Disabled -> Interface Down -
 2026-07-14 08:03:12 UTC
 [INFO]  Route Withdrawal
        Route withdrawal initiated for prefix 10.20.0.0/16
+        |
+        v
+
+2026-07-14 08:07:00 UTC
+[INFO]  Transceiver  <- RECOVERY
+       Transceiver inserted on port 1/1/49
+        |
+        v
+
+2026-07-14 08:07:01 UTC
+[INFO]  Interface Up  <- RECOVERY
+       Link up on interface 1/1/49
+        |
+        v
+
+2026-07-14 08:07:02 UTC
+[INFO]  Interface Up  <- RECOVERY
+       Interface 1/1/49 operational status changed to UP
+        |
+        v
+
+2026-07-14 08:07:03 UTC
+[INFO]  Ospf Interface Up  <- RECOVERY
+       OSPF interface 1/1/49 state changed from Down to PtP
+        |
+        v
+
+2026-07-14 08:07:04 UTC
+[INFO]  Ospf Neighbor Up  <- RECOVERY
+       OSPF neighbor 10.20.20.1 changed state from DOWN to FULL
+        |
+        v
+
+2026-07-14 08:07:06 UTC
+[INFO]  Bgp Session Established  <- RECOVERY
+       BGP peer 172.16.2.1 session established
+        |
+        v
+
+2026-07-14 08:07:08 UTC
+[INFO]  Routes Relearned  <- RECOVERY
+       Routes successfully relearned
+        |
+        v
+
+2026-07-14 08:09:25 UTC
+[INFO]  Lldp
+       LLDP neighbor discovered on port 1/1/49
 ```
 
-#### 4.2.3  Recovery Events
-
-**Status = RESOLVED** (Recovery Duration: 385 seconds)
-
-- Transceiver
-- Interface Up
-- Interface Up
-- Ospf Interface Up
-- Ospf Neighbor Up
-- Bgp Session Established
-- Routes Relearned
-- Lldp Neighbor Discovered
-
-#### 4.2.4  Root Cause Analysis
+#### 4.2.3  Root Cause Analysis
 
 | Field | Detail |
 |---|---|
 | **Root Cause** | Transceiver |
 | **Root Trigger Event** | Transceiver on port 1/1/49 removed or signal lost |
 | **Device** | Dist-6300-02 |
-| **Causal Confidence** | 69% |
-| **Causal Links Found** | 15 |
+| **Causal Confidence** | 64% |
+| **Causal Links Found** | 22 |
 
-#### 4.2.5  Propagation
+#### 4.2.4  Cause-and-Effect Chain
 
-**Root Cause:** Transceiver on Dist-6300-02
-
-**Propagation:**
-Transceiver -> Interface Down -> Interface Down -> Ospf Interface Down -> Route Recalculation Started -> Route Recalculation Completed -> Bgp Session Lost -> Recovery Completed
+```
+Transceiver  <-- ROOT CAUSE
+        |
+        v
+Interface Down  (+1s)
+        |
+        v
+Interface Down  (+1s)
+        |
+        v
+Ospf Interface Down  (+1s)
+        |
+        v
+Route Recalculation Started  (+3s)
+        |
+        v
+Route Recalculation Completed  (+1s)
+        |
+        v
+Bgp Session Lost  (+2s)
+        |
+        v
+Route Withdrawal  (+3s)
+```
 
 #### 4.2.5  Supporting Evidence
 
@@ -309,7 +379,7 @@ Transceiver -> Interface Down -> Interface Down -> Ospf Interface Down -> Route 
 | 2026-07-14 08:07:04 | 44 | — | Info | Ospf Neighbor Up | OSPF neighbor 10.20.20.1 changed state from DOWN to FULL |
 | 2026-07-14 08:07:06 | 45 | — | Info | Bgp Session Established | BGP peer 172.16.2.1 session established |
 | 2026-07-14 08:07:08 | 46 | — | Info | Routes Relearned | Routes successfully relearned |
-| 2026-07-14 08:09:25 | 54 | 1/1/49 | Info | Lldp Neighbor Discovered | LLDP neighbor discovered on port 1/1/49 |
+| 2026-07-14 08:09:25 | 54 | 1/1/49 | Info | Lldp | LLDP neighbor discovered on port 1/1/49 |
 
 #### 4.2.6  Recommendations
 
@@ -321,8 +391,6 @@ Transceiver -> Interface Down -> Interface Down -> Ospf Interface Down -> Route 
 ---
 
 ### Incident INC-0007 — Ssh Bruteforce -> Ssh Source Blocked
-
-> **Summary:** Repeated SSH authentication failures detected. Automatic source IP blocking was triggered. No successful authentication occurred before mitigation.
 
 #### 4.3.1  Incident Overview
 
@@ -338,7 +406,6 @@ Transceiver -> Interface Down -> Interface Down -> Ospf Interface Down -> Route 
 | **Affected Interface(s)** | — |
 | **Events in Chain** | 2 |
 | **Causal Confidence** | 60% |
-| **Confidence Reasons** | ✓ Temporal proximity<br>✓ Known propagation chain |
 
 #### 4.3.2  Timeline Reconstruction
 
@@ -364,12 +431,14 @@ Transceiver -> Interface Down -> Interface Down -> Ospf Interface Down -> Route 
 | **Causal Confidence** | 60% |
 | **Causal Links Found** | 1 |
 
-#### 4.3.4  Propagation
+#### 4.3.4  Cause-and-Effect Chain
 
-**Root Cause:** Ssh Bruteforce on Edge-6300-01
-
-**Propagation:**
-Ssh Bruteforce -> Ssh Source Blocked
+```
+Ssh Bruteforce  <-- ROOT CAUSE
+        |
+        v
+Ssh Source Blocked  (+8s)
+```
 
 #### 4.3.5  Supporting Evidence
 
@@ -395,7 +464,7 @@ Ssh Bruteforce -> Ssh Source Blocked
 | Field | Value |
 |---|---|
 | **Incident ID** | INC-0008 |
-| **Status** | Recovering |
+| **Status** | Active |
 | **Start Time** | 2026-07-14 08:05:00 UTC |
 | **End Time** | 2026-07-14 08:09:20 UTC |
 | **Duration** | 260.0s |
@@ -404,7 +473,6 @@ Ssh Bruteforce -> Ssh Source Blocked
 | **Affected Interface(s)** | 1/1/8 |
 | **Events in Chain** | 5 |
 | **Causal Confidence** | 0% |
-| **Confidence Reasons** | ✓ Same interface<br>✓ Temporal proximity<br>✓ Known propagation chain |
 
 #### 4.4.2  Timeline Reconstruction
 
@@ -430,23 +498,23 @@ Ssh Bruteforce -> Ssh Source Blocked
 2026-07-14 08:08:00 UTC
 [INFO]  Authentication
        SSH access granted for user admin from 10.0.0.50
+        |
+        v
+
+2026-07-14 08:09:20 UTC
+[INFO]  Mac Auth
+       MAC Authentication successful for client EE:FF:00:33:44:55
 ```
 
-#### 4.4.3  Recovery Events
-
-**Status = RESOLVED** (Recovery Duration: 260 seconds)
-
-- Dot1X Success
-
-#### 4.4.4  Root Cause Analysis
+#### 4.4.3  Root Cause Analysis
 
 | Field | Detail |
 |---|---|
-| **Root Cause** | Radius Failure |
-| **Root Trigger Event** | RADIUS server 10.0.0.100 unreachable, authentication timeout |
+| **Root Cause** | Dot1X Failure |
+| **Root Trigger Event** | 802.1x: Authentication failed for client DD:EE:FF:00:11:22 on port 1/1/8 |
 | **Device** | Access-6200-02 |
 | **Causal Confidence** | 0% |
-| **Causal Links Found** | 3 |
+| **Causal Links Found** | 4 |
 
 #### 4.4.5  Supporting Evidence
 
@@ -456,14 +524,14 @@ Ssh Bruteforce -> Ssh Source Blocked
 | 2026-07-14 08:05:10 | 36 | — | Error | Radius Failure | RADIUS server 10.0.0.100 unreachable, authentication timeout |
 | 2026-07-14 08:05:15 | 37 | 1/1/8 | Warning | Port Blocked | Port 1/1/8 blocked due to repeated authentication failures |
 | 2026-07-14 08:08:00 | 47 | — | Info | Authentication | SSH access granted for user admin from 10.0.0.50 |
-| 2026-07-14 08:09:20 | 53 | — | Info | Dot1X Success | MAC Authentication successful for client EE:FF:00:33:44:55 |
+| 2026-07-14 08:09:20 | 53 | — | Info | Mac Auth | MAC Authentication successful for client EE:FF:00:33:44:55 |
 
 #### 4.4.6  Recommendations
 
 | # | Action | Rationale |
 |---|---|---|
-| 1 | **Investigate root cause device and interface** | device=Access-6200-02, interface=1/1/8 |
-| 2 | **Add monitoring alerts for this event type** | subtype=radius_failure |
+| 1 | **Review NAC/802.1X policy** | Authentication failure may indicate unauthorized device |
+| 2 | **Audit recent login attempts** | Check if failure is a misconfigured client or attack |
 
 ---
 
@@ -486,8 +554,10 @@ Ssh Bruteforce -> Ssh Source Blocked
 | WORKFLOW-0001 | Ntp | 2026-07-14 08:02:05 | Successful | No |
 | WORKFLOW-0001 | Snmp | 2026-07-14 08:06:00 | Successful | No |
 | WORKFLOW-0002 | Config Change | 2026-07-14 08:00:10 | Successful | No |
+| WORKFLOW-0004 | Mac Auth | 2026-07-14 08:02:00 | Successful | No |
 | WORKFLOW-0009 | Config Change | 2026-07-14 08:06:05 | Successful | No |
 | WORKFLOW-0010 | Config Change | 2026-07-14 08:08:05 | Successful | No |
+| WORKFLOW-0011 | Mac Auth | 2026-07-14 08:09:00 | Successful | No |
 
 ---
 
@@ -497,9 +567,7 @@ Ssh Bruteforce -> Ssh Source Blocked
 
 | Event Type | Time (UTC) | Device | Notes |
 |---|---|---|---|
-| Dot1X Success | 2026-07-14 08:02:00 | Access-6200-01 | Classified as informational by causal engine |
-| Lldp Neighbor Discovered | 2026-07-14 08:03:30 | Access-6200-01 | Expected neighbor discovery |
-| Dot1X Success | 2026-07-14 08:09:00 | Access-6200-01 | Classified as informational by causal engine |
+| Lldp | 2026-07-14 08:03:30 | Access-6200-01 | Expected neighbor discovery |
 | Interface Up | 2026-07-14 08:09:05 | Access-6200-01 | Standard port coming online |
 | Vlan | 2026-07-14 08:09:15 | Core-9300-01 | Normal VLAN provisioning activity |
 
@@ -517,8 +585,8 @@ Ssh Bruteforce -> Ssh Source Blocked
 | High | Block source IP at perimeter firewall | INC-0007 |
 | High | Enable SSH rate limiting | INC-0007 |
 | High | Review SSH access control list | INC-0007 |
-| High | Investigate root cause device and interface | INC-0008 |
-| High | Add monitoring alerts for this event type | INC-0008 |
+| High | Review NAC/802.1X policy | INC-0008 |
+| High | Audit recent login attempts | INC-0008 |
 | Low | Enrich device vendor metadata for improved classification accuracy | All |
 | Low | Configure alerting for high root-score event subtypes | All |
 
@@ -528,9 +596,9 @@ Ssh Bruteforce -> Ssh Source Blocked
 
 **Reconstructed Incidents (4):**
 - **INC-0003** — Root Cause: Power Failure | Status: Active | Confidence: 75%
-- **INC-0005** — Root Cause: Transceiver | Status: Resolved | Confidence: 69%
+- **INC-0005** — Root Cause: Transceiver | Status: Resolved | Confidence: 64%
 - **INC-0007** — Root Cause: Ssh Bruteforce | Status: Active | Confidence: 60%
-- **INC-0008** — Root Cause: Radius Failure | Status: Recovering | Confidence: N/A
+- **INC-0008** — Root Cause: Dot1X Failure | Status: Active | Confidence: N/A
 
 **Overall Network Health:** Poor — active incidents detected
 
@@ -546,7 +614,7 @@ Ssh Bruteforce -> Ssh Source Blocked
 |---|---|
 | **Reconstructed Incident IDs** | INC-0003, INC-0005, INC-0007, INC-0008 |
 | **Standalone Alert IDs** | None |
-| **Total Causal Links** | 51 |
-| **Report Generated** | 2026-07-14T18:01:22Z |
+| **Total Causal Links** | 59 |
+| **Report Generated** | 2026-07-14T17:28:04Z |
 | **Log Reference Files** | normalized_events.json, timeline_output.json, causal_inference_output.json |
 | **Causality Method** | Temporal + contextual heuristics (DAG-graph-partitioned) |

@@ -15,25 +15,26 @@ from typing import Any, Dict, List, Optional, Tuple
 import networkx as nx
 
 SEV = {"debug": 0, "info": 1, "notice": 1, "warning": 2, "warn": 2, "error": 3, "err": 3, "critical": 4, "crit": 4}
-BENIGN = {"snmp", "ntp", "vlan", "lldp", "interface_up", "mac_auth_success", "dot1x_logout",
+BENIGN = {"snmp", "ntp", "vlan", "lldp_neighbor_discovered", "interface_up", "dot1x_success", "dot1x_logout",
           "vtep_operational", "tunnel_operational", "vni_create", "vxlan_interface", "tunnel_nexthop_add",
-          "fan_nominal", "bgp_session_established", "ospf_neighbor_up", "radius_recovered", "ospf_interface_up"}
+          "fan_nominal", "bgp_session_established", "ospf_neighbor_up", "radius_recovered", "ospf_interface_up", "stp_converged"}
 ACTIONABLE_LOW_OK = {"stp_topology_change", "config_change", "tunnel_nexthop_delete", "power_failure", "fan_failure", "crc_errors", "interface_down", "radius_failure", "transceiver"}
 
 # BASE scores reflect the causal weight of each event type.
 # Hardware/Physical failures score highest. VXLAN/tunnel events are Layer 2/3 overlay.
 BASE = {
     # --- Layer 0: Hardware ---
-    "power_failure": 130, "fan_failure": 110, "thermal": 105,
+    "power_failure": 130, "fan_failure": 130, "thermal": 130, "linecard_disabled": 130,
     # --- Layer 1: Physical Link ---
-    "transceiver": 125, "crc_errors": 120, "interface_down": 115,
+    "transceiver": 150, "crc_errors": 140, "interface_down": 120,
     # --- Layer 2: Switching / Topology / VXLAN Overlay ---
-    "stp_topology_change": 85, "vlan": 20, "lldp": 18,
-    "mac_auth_success": 5, "dot1x_failure": 30, "dot1x_logout": 5,
+    "stp_topology_change": 80, "vlan": 20, "lldp_neighbor_removed": 90, "lldp_neighbor_discovered": 10,
+    "dot1x_success": 5, "dot1x_failure": 120, "dot1x_logout": 5, "port_blocked": 70,
     "vni_create": 25, "vxlan_interface": 30,
     "vtep_operational": 10, "vtep_down": 90,
     # --- Layer 3: Routing / Tunnel Underlay ---
-    "ospf": 95, "bgp": 80,
+    "ospf": 95, "ospf_neighbor_down": 110, "bgp": 80, "bgp_session_lost": 100,
+    "route_recalculation_started": -50, "route_recalculation_completed": -50,
     "tunnel_nexthop_delete": 10,  # nexthop withdraw = routine transition, low weight
     "tunnel_nexthop_add": 10,     # nexthop add = recovery, low root-cause weight
     "tunnel_activating": 40,
@@ -47,10 +48,10 @@ BASE = {
     # --- Configuration ---
     "config_change": 60,
     # --- Security ---
-    "ssh_bruteforce": 25, "admin_auth_failure": 20,
+    "ssh_bruteforce": 25, "admin_auth_failure": 20, "radius_failure": 140,
     "acl_deny": 15, "arp_spoofing": 85, "mac_flap": 80,
     # --- Informational / noise / recovery ---
-    "interface_up": 5, "snmp": 3, "ntp": 3, "fan_nominal": 2,
+    "interface_up": 5, "snmp": 3, "ntp": 3, "fan_nominal": 2, "stp_converged": 5,
     "bgp_session_established": 5, "ospf_neighbor_up": 5, "radius_recovered": 5, "ospf_interface_up": 5,
 }
 
@@ -59,18 +60,19 @@ LAYER = {
     "power_failure": 0, "fan_failure": 0, "thermal": 0,
     "crc_errors": 1, "interface_down": 1,
     "interface_up": 1, "transceiver": 1,
-    "stp_topology_change": 2, "vlan": 2, "lldp": 2,
-    "mac_auth_success": 2, "dot1x_failure": 2,
+    "stp_topology_change": 2, "stp_converged": 2, "vlan": 2, "lldp_neighbor_removed": 2, "lldp_neighbor_discovered": 2,
+    "dot1x_success": 2, "dot1x_failure": 2, "port_blocked": 2,
     "vni_create": 2, "vxlan_interface": 2, "vtep_operational": 2, "vtep_down": 2,
     "mac_flap": 2, "arp_spoofing": 2, "fan_nominal": 0,
-    "ospf": 3, "ospf_neighbor_down": 3, "bgp": 3, "config_change": 3,
+    "ospf": 3, "ospf_neighbor_down": 3, "bgp": 3, "bgp_session_lost": 3, "config_change": 3,
+    "route_recalculation_started": 3, "route_recalculation_completed": 3,
     "tunnel_nexthop_delete": 3, "tunnel_nexthop_add": 3,
     "tunnel_activating": 3, "tunnel_operational": 3,
     "vrrp_state_change": 3, "hsrp_state_change": 3, "mlag_peer_down": 2,
     "ipsec_tunnel_down": 3, "ike_failure": 3,
     "pim_neighbor_down": 3, "igmp_snooping_error": 2,
     "high_cpu": 0, "high_memory": 0, "queue_drop": 2, "buffer_overflow": 2,
-    "ssh_bruteforce": 4, "admin_auth_failure": 4, "acl_deny": 4,
+    "ssh_bruteforce": 4, "admin_auth_failure": 4, "acl_deny": 4, "radius_failure": 4,
     "bgp_session_established": 3, "ospf_neighbor_up": 3, "radius_recovered": 4, "ospf_interface_up": 3,
 }
 
@@ -86,8 +88,8 @@ DOMAIN_TIER = {
     "stp_topology_change": "Layer 2 - Switching",
     "ospf": "Layer 3 - Routing",
     "ospf_neighbor_down": "Layer 3 - Routing", "vlan": "Layer 2 - Switching",
-    "lldp": "Layer 2 - Switching",
-    "mac_auth_success": "Layer 2 - Switching",
+    "lldp_neighbor_removed": "Layer 2 - Switching", "lldp_neighbor_discovered": "Layer 2 - Switching",
+    "dot1x_success": "Layer 2 - Switching",
     "dot1x_failure": "Layer 2 - Switching",
     "dot1x_logout": "Layer 2 - Switching",
     "vni_create": "Layer 2 - VXLAN Overlay",
@@ -109,9 +111,11 @@ DOMAIN_TIER = {
 
 RECOVERY_EVENTS = {"interface_up", "bgp", "ospf", "fan_failure", "power_failure", "ntp", "transceiver",
                    "tunnel_operational", "vtep_operational", "tunnel_nexthop_add", "bgp_session_established",
-                   "ospf_neighbor_up", "routes_relearned", "ospf_interface_up", "radius_recovered", "fan_nominal"}
+                   "ospf_neighbor_up", "routes_relearned", "ospf_interface_up", "radius_recovered", "fan_nominal",
+                   "lldp_neighbor_discovered", "stp_converged", "dot1x_success"}
 RECOVERY_KEYWORDS = {"established", "up", "on-line", "online", "restored", "synchronized",
-                     "forwarding", "operational", "activating", "inserted", "full", "ptp", "relearned"}
+                     "forwarding", "operational", "activating", "inserted", "full", "ptp", "relearned",
+                     "discovered", "converged", "succeeded", "successful"}
 
 
 def n(v) -> str:
@@ -155,9 +159,12 @@ def subtype(e):
     if "802.1x" in s and ("failed" in s or "failure" in s): return "dot1x_failure"
     if "802.1x" in s and "logged out" in s: return "dot1x_logout"
     if "radius" in s and ("unreachable" in s or "timeout" in s or "dead" in s): return "radius_failure"
-    if "mac-auth" in s: return "mac_auth_success"
+    if "authentication succeeded" in s or "authentication successful" in s or "mac authentication successful" in s: return "dot1x_success"
     if "transceiver" in s: return "transceiver"
-    if "lldp" in s: return "lldp"
+    if "lldp" in s: 
+        if "removed" in s: return "lldp_neighbor_removed"
+        return "lldp_neighbor_discovered"
+    if "topology converged" in s or "stp converged" in s: return "stp_converged"
     if "vlan" in s and "vxlan" not in s and "vni" not in s: return "vlan"
     # --- HPE 9300 / VXLAN / EVPN events ---
     if "nexthop delete" in s: return "tunnel_nexthop_delete"

@@ -113,6 +113,7 @@ COOCCURRING_SUBTYPES = {
     frozenset({"power", "interface_down"}),
     frozenset({"fan", "thermal"}),
     frozenset({"thermal", "linecard_disabled"}),
+    frozenset({"linecard_disabled", "interface_down"}),
     frozenset({"linecard_disabled", "bgp"}),
     frozenset({"linecard_disabled", "bgp_session_lost"}),
     frozenset({"linecard_disabled", "ospf"}),
@@ -369,6 +370,15 @@ def compatibility_score(
             else:
                 score -= 0.10
 
+    # Strongly bind hardware failures to physical link failures on the same device
+    # even without explicit interface references (e.g. linecard disable taking down ports)
+    if {"hardware", "physical_link"}.issubset({da, db}):
+        if dev_a == dev_b and dev_a != "unknown":
+            ta_val, tb_val = event_time(a), event_time(b)
+            lag_val = abs((tb_val - ta_val).total_seconds())
+            if lag_val <= 10:
+                score += 0.50
+
     # Allow same-device tunnel events to merge with physical_link/routing events
     # (EVPN/VXLAN teardown cascades propagate from L1 → L3 → tunnel on same device)
     if "tunnel" in {da, db} and bool({"physical_link", "routing"} & {da, db}):
@@ -378,8 +388,8 @@ def compatibility_score(
             if lag_val <= 5:
                 score += 0.35  # Strong bond for same-device L1→tunnel cascade
 
-    # Penalize bridging unrelated noise (service, inventory) to critical infrastructure
-    if bool({"service", "inventory"} & {da, db}) and bool({"hardware", "physical_link", "routing", "tunnel", "performance", "high_availability"} & {da, db}):
+    # Penalize bridging unrelated noise (service, inventory) to critical infrastructure or security
+    if bool({"service", "inventory"} & {da, db}) and da != db:
         if not (shares_explicit_reference(a, b) or shares_interface_reference(a, b)):
             score -= 0.50  # Sever the connection unless explicitly linked
 

@@ -1,0 +1,186 @@
+{
+  "nodes": [
+    "Core-8325-01",
+    "Access-6100-01",
+    "Dist-6300-01",
+    "Access-6100-02",
+    "Access-6100-03",
+    "Access-6100-04",
+    "192.168.1.10",
+    "router-2",
+    "Edge-6300-01",
+    "leaf1",
+    "192.168.1.104",
+    "Access-6100-05",
+    "router-1",
+    "9300"
+  ],
+  "edges": [
+    {
+      "source": "Core-8325-01",
+      "target": "Access-6100-01",
+      "weight": 0.5,
+      "reasons": [
+        "shared MACs: 00:11:22:33:44:55"
+      ]
+    },
+    {
+      "source": "Core-8325-01",
+      "target": "Dist-6300-01",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.10.10.0/24, 172.16.1.0/24"
+      ]
+    },
+    {
+      "source": "Core-8325-01",
+      "target": "192.168.1.10",
+      "weight": 0.9,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24, 192.168.1.0/24, 203.0.113.0/24",
+        "shared MACs: 00:11:22:33:44:55"
+      ]
+    },
+    {
+      "source": "Core-8325-01",
+      "target": "router-2",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24, 192.168.1.0/24"
+      ]
+    },
+    {
+      "source": "Core-8325-01",
+      "target": "192.168.1.104",
+      "weight": 1.5,
+      "reasons": [
+        "shared VLANs: 568",
+        "shared subnets: 10.10.10.0/24, 172.16.1.0/24, 192.168.1.0/24, 203.0.113.0/24",
+        "shared MACs: 00:11:22:33:44:55"
+      ]
+    },
+    {
+      "source": "Core-8325-01",
+      "target": "router-1",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24, 192.168.1.0/24"
+      ]
+    },
+    {
+      "source": "Access-6100-01",
+      "target": "192.168.1.10",
+      "weight": 0.5,
+      "reasons": [
+        "shared MACs: 00:11:22:33:44:55"
+      ]
+    },
+    {
+      "source": "Access-6100-01",
+      "target": "192.168.1.104",
+      "weight": 0.5,
+      "reasons": [
+        "shared MACs: 00:11:22:33:44:55"
+      ]
+    },
+    {
+      "source": "Dist-6300-01",
+      "target": "Edge-6300-01",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.254.1.0/24"
+      ]
+    },
+    {
+      "source": "Dist-6300-01",
+      "target": "192.168.1.104",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.10.10.0/24, 10.254.1.0/24, 172.16.1.0/24"
+      ]
+    },
+    {
+      "source": "Access-6100-02",
+      "target": "Access-6100-03",
+      "weight": 0.5,
+      "reasons": [
+        "shared MACs: 00:aa:bb:cc:dd:01"
+      ]
+    },
+    {
+      "source": "Access-6100-04",
+      "target": "192.168.1.104",
+      "weight": 0.5,
+      "reasons": [
+        "shared MACs: 00:aa:bb:cc:dd:ee"
+      ]
+    },
+    {
+      "source": "192.168.1.10",
+      "target": "router-2",
+      "weight": 1.0,
+      "reasons": [
+        "explicit IP cross-ref: 192.168.1.10"
+      ]
+    },
+    {
+      "source": "192.168.1.10",
+      "target": "192.168.1.104",
+      "weight": 0.9,
+      "reasons": [
+        "shared subnets: 192.168.1.0/24, 203.0.113.0/24",
+        "shared MACs: 00:11:22:33:44:55"
+      ]
+    },
+    {
+      "source": "192.168.1.10",
+      "target": "router-1",
+      "weight": 1.6,
+      "reasons": [
+        "explicit IP cross-ref: 192.168.1.10",
+        "shared VLANs: 30"
+      ]
+    },
+    {
+      "source": "router-2",
+      "target": "192.168.1.104",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 192.168.1.0/24"
+      ]
+    },
+    {
+      "source": "router-2",
+      "target": "router-1",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.0.0.0/24, 192.168.1.0/24"
+      ]
+    },
+    {
+      "source": "Edge-6300-01",
+      "target": "192.168.1.104",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 10.254.1.0/24"
+      ]
+    },
+    {
+      "source": "leaf1",
+      "target": "9300",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 2.2.2.0/24, 3.3.3.0/24"
+      ]
+    },
+    {
+      "source": "192.168.1.104",
+      "target": "router-1",
+      "weight": 1.0,
+      "reasons": [
+        "shared VLANs: 20",
+        "shared subnets: 192.168.1.0/24, 192.168.2.0/24"
+      ]
+    }
+  ]
+}

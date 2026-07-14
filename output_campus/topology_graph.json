@@ -1,0 +1,18 @@
+{
+  "nodes": [
+    "Campus-Core-01",
+    "Floor2-Access-01",
+    "Floor3-Access-01",
+    "WAN-Router-01"
+  ],
+  "edges": [
+    {
+      "source": "Campus-Core-01",
+      "target": "Floor2-Access-01",
+      "weight": 0.4,
+      "reasons": [
+        "shared subnets: 192.168.1.0/24"
+      ]
+    }
+  ]
+}
